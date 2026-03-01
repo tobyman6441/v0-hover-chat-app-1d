@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { MessageCircleQuestion } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -12,7 +11,7 @@ interface FeedbackButtonProps {
 }
 
 function getDeviceInfo() {
-  if (typeof window === "undefined") return { device: "Unknown", browser: "Unknown", os: "Unknown", screenSize: "Unknown" }
+  if (typeof window === "undefined") return {}
   
   const ua = navigator.userAgent
   let device = "Desktop"
@@ -32,10 +31,8 @@ function getDeviceInfo() {
 }
 
 function openFeedbackWindow() {
-  if (typeof window === "undefined") return
-  
   const { device, browser, os, screenSize } = getDeviceInfo()
-  const currentPage = window.location.pathname
+  const currentPage = typeof window !== "undefined" ? window.location.pathname : ""
   const timestamp = new Date().toISOString()
   
   // Build context string
@@ -62,16 +59,7 @@ function openFeedbackWindow() {
 }
 
 export function FeedbackButton({ variant = "icon", className, size = "default" }: FeedbackButtonProps) {
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  
-  // Don't render floating button until mounted to avoid hydration issues
   if (variant === "floating") {
-    if (!mounted) return null
-    
     return (
       <button
         onClick={openFeedbackWindow}
