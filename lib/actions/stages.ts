@@ -181,12 +181,13 @@ export async function getJobStages(orgId: string): Promise<{ jobStages: JobStage
   return { jobStages: jobStages || [] }
 }
 
-// Update a job's stage (handles linked stages automatically)
+// Update a job's stage
+// Note: Linked stages are handled at query time by getJobStagesForPipeline,
+// NOT by storing multiple records (since job_stages has a unique constraint on org_id,hover_job_id)
 export async function updateJobStage(
   orgId: string,
   hoverJobId: number, 
-  stageId: string,
-  syncLinkedStages: boolean = true
+  stageId: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = createAdminClient()
 
@@ -207,34 +208,8 @@ export async function updateJobStage(
     )
 
   if (error) {
-    console.error("[v0] updateJobStage error:", error)
+    console.error("updateJobStage error:", error)
     return { success: false, error: error.message }
-  }
-
-  // If syncing linked stages, also update linked stage assignments
-  if (syncLinkedStages) {
-    const { data: stage } = await supabase
-      .from("stages")
-      .select("linked_stage_id")
-      .eq("id", stageId)
-      .single()
-
-    if (stage?.linked_stage_id) {
-      // Also assign to the linked stage using direct upsert
-      await supabase
-        .from("job_stages")
-        .upsert(
-          {
-            org_id: orgId,
-            hover_job_id: hoverJobId,
-            stage_id: stage.linked_stage_id,
-            updated_at: new Date().toISOString()
-          },
-          {
-            onConflict: "org_id,hover_job_id"
-          }
-        )
-    }
   }
   
   return { success: true }
@@ -247,27 +222,66 @@ export async function getJobStagesForPipeline(
 ): Promise<{ jobStages: JobStage[]; error?: string }> {
   const supabase = createAdminClient()
 
-  // Get stages for this pipeline
-  const { data: stages } = await supabase
+  // Get stages for this pipeline AND stages that link TO this pipeline's stages
+  const { data: pipelineStages } = await supabase
     .from("stages")
-    .select("id")
+    .select("id, linked_stage_id")
     .eq("org_id", orgId)
     .eq("pipeline_type", pipelineType)
 
-  if (!stages || stages.length === 0) return { jobStages: [] }
+  if (!pipelineStages || pipelineStages.length === 0) return { jobStages: [] }
 
-  const stageIds = stages.map(s => s.id)
+  const pipelineStageIds = pipelineStages.map(s => s.id)
+  
+  // Also get stages from OTHER pipelines that link to THIS pipeline's stages
+  // (so if a job is in production's "Approved" which links to sales' "Approved", 
+  // it should show up in sales' "Approved")
+  const { data: linkedFromOtherPipeline } = await supabase
+    .from("stages")
+    .select("id, linked_stage_id")
+    .eq("org_id", orgId)
+    .neq("pipeline_type", pipelineType)
+    .in("linked_stage_id", pipelineStageIds)
 
-  // Get job stages that belong to this pipeline's stages
-  const { data: jobStages, error } = await supabase
+  // Build a map: other pipeline stage ID -> this pipeline stage ID
+  const linkedStageMap: Record<string, string> = {}
+  if (linkedFromOtherPipeline) {
+    for (const stage of linkedFromOtherPipeline) {
+      if (stage.linked_stage_id) {
+        linkedStageMap[stage.id] = stage.linked_stage_id
+      }
+    }
+  }
+  
+  // Get ALL job stages for this org
+  const { data: allJobStages, error } = await supabase
     .from("job_stages")
     .select("*")
     .eq("org_id", orgId)
-    .in("stage_id", stageIds)
 
   if (error) return { jobStages: [], error: error.message }
+  if (!allJobStages) return { jobStages: [] }
+
+  // Filter and transform job stages
+  const jobStages: JobStage[] = []
+  for (const js of allJobStages) {
+    if (!js.stage_id) continue
+    
+    // If the job's stage is directly in this pipeline, include it
+    if (pipelineStageIds.includes(js.stage_id)) {
+      jobStages.push(js)
+    } 
+    // If the job's stage is in another pipeline but links to this pipeline, 
+    // transform it to use this pipeline's stage
+    else if (linkedStageMap[js.stage_id]) {
+      jobStages.push({
+        ...js,
+        stage_id: linkedStageMap[js.stage_id]
+      })
+    }
+  }
   
-  return { jobStages: jobStages || [] }
+  return { jobStages }
 }
 
 // Ensure a job has a stage assignment (creates one in first stage if not exists)
