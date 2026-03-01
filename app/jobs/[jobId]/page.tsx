@@ -14,7 +14,10 @@ import {
   Ruler,
   ClipboardCheck,
   Palette,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronUp,
+  User
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -29,6 +32,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { useToast } from "@/hooks/use-toast"
+import { MeasurementsDisplay } from "@/components/chat/measurements-display"
 import { 
   getJobPhotos, 
   getMeasurements,
@@ -129,6 +139,7 @@ export default function JobDetailPage() {
   const router = useRouter()
   const params = useParams()
   const jobId = Number(params.jobId)
+  const { toast } = useToast()
 
   const [job, setJob] = useState<HoverJobDetails | null>(null)
   const [stages, setStages] = useState<Stage[]>([])
@@ -141,8 +152,23 @@ export default function JobDetailPage() {
   const [inspections, setInspections] = useState<HoverInspection[]>([])
   const [wireframeImages, setWireframeImages] = useState<HoverWireframeImage[]>([])
   const [instantDesignImages, setInstantDesignImages] = useState<HoverInstantDesignImage[]>([])
+  const [rawMeasurements, setRawMeasurements] = useState<Record<string, unknown> | null>(null)
   const [measurements, setMeasurements] = useState<MeasurementCategory[]>([])
   const [measurementsLoading, setMeasurementsLoading] = useState(false)
+  
+  // Collapsible section states
+  const [inspectionsOpen, setInspectionsOpen] = useState(true)
+  const [measurementsOpen, setMeasurementsOpen] = useState(true)
+  const [scanPhotosOpen, setScanPhotosOpen] = useState(true)
+  const [wireframeOpen, setWireframeOpen] = useState(true)
+  const [designImagesOpen, setDesignImagesOpen] = useState(true)
+  const [inspectionPhotosOpen, setInspectionPhotosOpen] = useState(true)
+  const [customerOpen, setCustomerOpen] = useState(true)
+  
+  // Photo expansion states
+  const [scanPhotosExpanded, setScanPhotosExpanded] = useState(false)
+  const [wireframeExpanded, setWireframeExpanded] = useState(false)
+  const [designImagesExpanded, setDesignImagesExpanded] = useState(false)
 
   const loadData = useCallback(async (orgId: string) => {
     if (!jobId) return
@@ -191,6 +217,7 @@ export default function JobDetailPage() {
       setMeasurementsLoading(true)
       const result = await getMeasurements(modelId)
       if (result.success && result.measurements) {
+        setRawMeasurements(result.measurements)
         const parsed = parseMeasurements(result.measurements)
         setMeasurements(parsed)
       }
@@ -218,6 +245,9 @@ export default function JobDetailPage() {
     if (!org || isUpdatingStage) return
     
     const previousStageId = currentStageId
+    const previousStageName = stages.find(s => s.id === previousStageId)?.name
+    const newStageName = stages.find(s => s.id === newStageId)?.name
+    
     setIsUpdatingStage(true)
     setCurrentStageId(newStageId) // Optimistic update
     
@@ -226,10 +256,25 @@ export default function JobDetailPage() {
       if (result.error) {
         console.error("Stage update failed:", result.error)
         setCurrentStageId(previousStageId) // Revert on error
+        toast({
+          title: "Failed to update stage",
+          description: result.error,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Stage updated",
+          description: `Moved to "${newStageName}"`,
+        })
       }
     } catch (error) {
       console.error("Stage update exception:", error)
       setCurrentStageId(previousStageId) // Revert on error
+      toast({
+        title: "Failed to update stage",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
     }
     
     setIsUpdatingStage(false)
@@ -354,8 +399,8 @@ export default function JobDetailPage() {
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="mt-6 flex flex-wrap gap-3">
+                {/* Action Button */}
+                <div className="mt-6">
                   <Button asChild>
                     <a
                       href={`https://hover.to/wr/jobs/${job.id}`}
@@ -366,265 +411,366 @@ export default function JobDetailPage() {
                       Open in Hover
                     </a>
                   </Button>
-                  <Button variant="outline" asChild>
-                    <Link href={`/chat?action=photos&jobId=${job.id}`}>
-                      <Camera className="mr-2 size-4" />
-                      View Photos
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link href={`/chat?action=measurements&jobId=${job.id}`}>
-                      <Ruler className="mr-2 size-4" />
-                      Get Measurements
-                    </Link>
-                  </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Inspections */}
-            {inspections.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ClipboardCheck className="size-5" />
-                    Inspections
-                  </CardTitle>
+            {/* Inspections - Always show */}
+            <Card>
+              <Collapsible open={inspectionsOpen} onOpenChange={setInspectionsOpen}>
+                <CardHeader className="pb-3">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex w-full items-center justify-between text-left">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <ClipboardCheck className="size-5" />
+                        Inspections ({inspections.length})
+                      </CardTitle>
+                      {inspectionsOpen ? (
+                        <ChevronUp className="size-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="size-5 text-muted-foreground" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-3">
-                    {inspections.map((inspection) => (
-                      <Button
-                        key={inspection.id}
-                        variant="outline"
-                        asChild
-                      >
-                        <a
-                          href={`https://hover.to/wr/inspections/${inspection.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ClipboardCheck className="mr-2 size-4" />
-                          {inspection.title || `Inspection #${inspection.id}`}
-                        </a>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    {inspections.length > 0 ? (
+                      <div className="flex flex-wrap gap-3">
+                        {inspections.map((inspection) => (
+                          <Button
+                            key={inspection.id}
+                            variant="outline"
+                            asChild
+                          >
+                            <a
+                              href={`https://hover.to/wr/inspections/${inspection.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ClipboardCheck className="mr-2 size-4" />
+                              {inspection.title || `Inspection #${inspection.id}`}
+                            </a>
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No inspections for this job.</p>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
 
-            {/* Measurements */}
-            {(measurements.length > 0 || measurementsLoading) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Ruler className="size-5" />
-                    Measurements
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {measurementsLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="size-4 animate-spin" />
-                      <span className="text-sm">Loading measurements...</span>
-                    </div>
-                  ) : (
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {measurements.map((category) => (
-                        <div key={category.name}>
-                          <h4 className="mb-3 text-sm font-semibold text-foreground">
-                            {category.name}
-                          </h4>
-                          <div className="space-y-2">
-                            {category.items.slice(0, 8).map((item, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">{item.label}</span>
-                                <span className="font-medium">
-                                  {item.value}
-                                  {item.unit && <span className="ml-1 text-xs text-muted-foreground">{item.unit}</span>}
-                                </span>
-                              </div>
-                            ))}
-                            {category.items.length > 8 && (
-                              <p className="text-xs text-muted-foreground">
-                                +{category.items.length - 8} more items
-                              </p>
-                            )}
-                          </div>
+            {/* Measurements - Using the same component as chat */}
+            {(rawMeasurements || measurementsLoading) && (
+              <Collapsible open={measurementsOpen} onOpenChange={setMeasurementsOpen}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex w-full items-center justify-between text-left">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Ruler className="size-5" />
+                          Measurements
+                        </CardTitle>
+                        {measurementsOpen ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      {measurementsLoading ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="size-4 animate-spin" />
+                          <span className="text-sm">Loading measurements...</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      ) : rawMeasurements ? (
+                        <MeasurementsDisplay 
+                          measurements={rawMeasurements}
+                          jobName={job?.name || `Job #${jobId}`}
+                          address={address || ""}
+                        />
+                      ) : null}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             )}
 
             {/* Scan Photos */}
             {scanPhotos.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Camera className="size-5" />
-                    Scan Photos ({scanPhotos.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                    {scanPhotos.slice(0, 8).map((photo, index) => (
-                      <div
-                        key={photo.id || index}
-                        className="aspect-video overflow-hidden rounded-lg bg-muted"
-                      >
-                        <img
-                          src={proxyImageUrl(photo.thumb_url || photo.url)}
-                          alt={`Scan photo ${index + 1}`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {scanPhotos.length > 8 && (
-                    <p className="mt-3 text-center text-sm text-muted-foreground">
-                      +{scanPhotos.length - 8} more photos
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Wireframe Images (3D Model Views) */}
-            {wireframeImages.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ImageIcon className="size-5" />
-                    3D Model Views ({wireframeImages.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                    {wireframeImages.slice(0, 8).map((image, index) => (
-                      <div
-                        key={image.id || index}
-                        className="aspect-video overflow-hidden rounded-lg bg-muted"
-                      >
-                        <img
-                          src={proxyImageUrl(image.thumbnail_url || image.url)}
-                          alt={`3D view ${index + 1}`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {wireframeImages.length > 8 && (
-                    <p className="mt-3 text-center text-sm text-muted-foreground">
-                      +{wireframeImages.length - 8} more images
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Instant Design Images */}
-            {instantDesignImages.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Palette className="size-5" />
-                    Design Images ({instantDesignImages.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                    {instantDesignImages.slice(0, 8).map((image, index) => (
-                      <div
-                        key={image.id || index}
-                        className="aspect-video overflow-hidden rounded-lg bg-muted"
-                      >
-                        <img
-                          src={proxyImageUrl(image.thumbnail_url || image.url)}
-                          alt={`Design ${index + 1}`}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {instantDesignImages.length > 8 && (
-                    <p className="mt-3 text-center text-sm text-muted-foreground">
-                      +{instantDesignImages.length - 8} more designs
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Inspection Photos */}
-            {inspections.some(i => i.photos && i.photos.length > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ClipboardCheck className="size-5" />
-                    Inspection Photos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {inspections.filter(i => i.photos && i.photos.length > 0).map((inspection) => (
-                    <div key={inspection.id}>
-                      <h4 className="mb-3 text-sm font-semibold">
-                        {inspection.title || `Inspection #${inspection.id}`}
-                      </h4>
+                <Collapsible open={scanPhotosOpen} onOpenChange={setScanPhotosOpen}>
+                  <CardHeader className="pb-3">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex w-full items-center justify-between text-left">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Camera className="size-5" />
+                          Scan Photos ({scanPhotos.length})
+                        </CardTitle>
+                        {scanPhotosOpen ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        {inspection.photos?.slice(0, 4).map((photo, index) => (
+                        {(scanPhotosExpanded ? scanPhotos : scanPhotos.slice(0, 8)).map((photo, index) => (
                           <div
                             key={photo.id || index}
                             className="aspect-video overflow-hidden rounded-lg bg-muted"
                           >
                             <img
                               src={proxyImageUrl(photo.thumb_url || photo.url)}
-                              alt={`Inspection photo ${index + 1}`}
+                              alt={`Scan photo ${index + 1}`}
                               className="h-full w-full object-cover"
                               loading="lazy"
                             />
                           </div>
                         ))}
                       </div>
-                      {inspection.photos && inspection.photos.length > 4 && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          +{inspection.photos.length - 4} more photos
-                        </p>
+                      {scanPhotos.length > 8 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-3 w-full"
+                          onClick={() => setScanPhotosExpanded(!scanPhotosExpanded)}
+                        >
+                          {scanPhotosExpanded ? (
+                            <>
+                              <ChevronUp className="mr-2 size-4" />
+                              Show less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="mr-2 size-4" />
+                              Show all {scanPhotos.length} photos
+                            </>
+                          )}
+                        </Button>
                       )}
-                    </div>
-                  ))}
-                </CardContent>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            )}
+
+            {/* Wireframe Images (3D Model Views) */}
+            {wireframeImages.length > 0 && (
+              <Card>
+                <Collapsible open={wireframeOpen} onOpenChange={setWireframeOpen}>
+                  <CardHeader className="pb-3">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex w-full items-center justify-between text-left">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <ImageIcon className="size-5" />
+                          3D Model Views ({wireframeImages.length})
+                        </CardTitle>
+                        {wireframeOpen ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {(wireframeExpanded ? wireframeImages : wireframeImages.slice(0, 8)).map((image, index) => (
+                          <div
+                            key={image.id || index}
+                            className="aspect-video overflow-hidden rounded-lg bg-muted"
+                          >
+                            <img
+                              src={proxyImageUrl(image.thumbnail_url || image.url)}
+                              alt={`3D view ${index + 1}`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {wireframeImages.length > 8 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-3 w-full"
+                          onClick={() => setWireframeExpanded(!wireframeExpanded)}
+                        >
+                          {wireframeExpanded ? (
+                            <>
+                              <ChevronUp className="mr-2 size-4" />
+                              Show less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="mr-2 size-4" />
+                              Show all {wireframeImages.length} images
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            )}
+
+            {/* Instant Design Images */}
+            {instantDesignImages.length > 0 && (
+              <Card>
+                <Collapsible open={designImagesOpen} onOpenChange={setDesignImagesOpen}>
+                  <CardHeader className="pb-3">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex w-full items-center justify-between text-left">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Palette className="size-5" />
+                          Design Images ({instantDesignImages.length})
+                        </CardTitle>
+                        {designImagesOpen ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {(designImagesExpanded ? instantDesignImages : instantDesignImages.slice(0, 8)).map((image, index) => (
+                          <div
+                            key={image.id || index}
+                            className="aspect-video overflow-hidden rounded-lg bg-muted"
+                          >
+                            <img
+                              src={proxyImageUrl(image.thumbnail_url || image.url)}
+                              alt={`Design ${index + 1}`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {instantDesignImages.length > 8 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-3 w-full"
+                          onClick={() => setDesignImagesExpanded(!designImagesExpanded)}
+                        >
+                          {designImagesExpanded ? (
+                            <>
+                              <ChevronUp className="mr-2 size-4" />
+                              Show less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="mr-2 size-4" />
+                              Show all {instantDesignImages.length} designs
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            )}
+
+            {/* Inspection Photos */}
+            {inspections.some(i => i.photos && i.photos.length > 0) && (
+              <Card>
+                <Collapsible open={inspectionPhotosOpen} onOpenChange={setInspectionPhotosOpen}>
+                  <CardHeader className="pb-3">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex w-full items-center justify-between text-left">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <ClipboardCheck className="size-5" />
+                          Inspection Photos
+                        </CardTitle>
+                        {inspectionPhotosOpen ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="space-y-6 pt-0">
+                      {inspections.filter(i => i.photos && i.photos.length > 0).map((inspection) => (
+                        <div key={inspection.id}>
+                          <h4 className="mb-3 text-sm font-semibold">
+                            {inspection.title || `Inspection #${inspection.id}`}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            {inspection.photos?.map((photo, index) => (
+                              <div
+                                key={photo.id || index}
+                                className="aspect-video overflow-hidden rounded-lg bg-muted"
+                              >
+                                <img
+                                  src={proxyImageUrl(photo.thumb_url || photo.url)}
+                                  alt={`Inspection photo ${index + 1}`}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
               </Card>
             )}
 
             {/* Customer Info */}
             {job.customer && (job.customer.name || job.customer.email || job.customer.phone) && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Home className="size-5" />
-                    Customer
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {job.customer.name && (
-                      <p className="text-sm font-medium">{job.customer.name}</p>
-                    )}
-                    {job.customer.email && (
-                      <p className="text-sm text-muted-foreground">{job.customer.email}</p>
-                    )}
-                    {job.customer.phone && (
-                      <p className="text-sm text-muted-foreground">{job.customer.phone}</p>
-                    )}
-                  </div>
-                </CardContent>
+                <Collapsible open={customerOpen} onOpenChange={setCustomerOpen}>
+                  <CardHeader className="pb-3">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex w-full items-center justify-between text-left">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <User className="size-5" />
+                          Customer
+                        </CardTitle>
+                        {customerOpen ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        {job.customer.name && (
+                          <p className="text-sm font-medium">{job.customer.name}</p>
+                        )}
+                        {job.customer.email && (
+                          <p className="text-sm text-muted-foreground">{job.customer.email}</p>
+                        )}
+                        {job.customer.phone && (
+                          <p className="text-sm text-muted-foreground">{job.customer.phone}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
               </Card>
             )}
           </div>
