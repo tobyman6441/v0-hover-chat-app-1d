@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json()
-    const { access_token, refresh_token } = tokenData
+    const { access_token, refresh_token, expires_in } = tokenData
 
     if (!access_token || !refresh_token) {
       return NextResponse.redirect(
@@ -56,23 +56,47 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get the current user and save tokens to their org via RPC (bypasses RLS)
+    // Calculate expiry time (default to 2 hours if not provided)
+    const expiresInSeconds = expires_in || 7200
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000)
+
+    // Get the current user and save tokens to their org
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
 
     if (user) {
-      const { error: rpcError } = await supabase.rpc("save_hover_tokens", {
-        p_user_id: user.id,
-        p_access_token: access_token,
-        p_refresh_token: refresh_token,
-      })
+      // Get user's org_id first
+      const { data: membership } = await adminSupabase
+        .from("org_members")
+        .select("org_id")
+        .eq("user_id", user.id)
+        .single()
 
-      if (rpcError) {
-        console.error("Failed to save Hover tokens:", rpcError)
+      if (membership?.org_id) {
+        // Use admin client to update the organization (bypasses RLS)
+        const { error: updateError } = await adminSupabase
+          .from("organizations")
+          .update({
+            hover_access_token: access_token,
+            hover_refresh_token: refresh_token,
+            hover_connected_at: new Date().toISOString(),
+            hover_token_expires_at: expiresAt.toISOString(),
+          })
+          .eq("id", membership.org_id)
+
+        if (updateError) {
+          console.error("Failed to save Hover tokens:", updateError)
+          return NextResponse.redirect(
+            `${appUrl}/setup?hover_error=save_failed`,
+          )
+        }
+      } else {
+        console.error("User has no organization membership")
         return NextResponse.redirect(
-          `${appUrl}/setup?hover_error=save_failed`,
+          `${appUrl}/setup?hover_error=no_organization`,
         )
       }
     }
