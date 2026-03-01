@@ -420,6 +420,7 @@ export default function ChatDetailPage({
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [initialLoaded, setInitialLoaded] = useState(false)
+  const [chatError, setChatError] = useState<{ message: string; billingUrl?: string } | null>(null)
   const hasLoadedHistory = useRef(false)
   const autoDeleteTimerRef = useRef<NodeJS.Timeout | null>(null)
   const hasUserInteracted = useRef(false)
@@ -466,6 +467,44 @@ export default function ChatDetailPage({
     onError: (err) => {
       console.error("[v0] Chat error:", err)
       setPendingUserMessage(false)
+      
+      // Parse error for quota/billing issues
+      const errStr = String(err)
+      if (errStr.includes("insufficient_quota") || errStr.includes("exceeded") || errStr.includes("quota")) {
+        // Determine billing URL based on provider
+        const provider = org?.llm_provider?.toLowerCase()
+        let billingUrl = ""
+        let providerName = "your LLM provider"
+        
+        if (provider === "openai") {
+          billingUrl = "https://platform.openai.com/account/billing"
+          providerName = "OpenAI"
+        } else if (provider === "anthropic") {
+          billingUrl = "https://console.anthropic.com/settings/billing"
+          providerName = "Anthropic"
+        } else if (provider === "google") {
+          billingUrl = "https://console.cloud.google.com/billing"
+          providerName = "Google Cloud"
+        } else if (provider === "mistral") {
+          billingUrl = "https://console.mistral.ai/billing"
+          providerName = "Mistral"
+        } else if (provider === "groq") {
+          billingUrl = "https://console.groq.com/settings/billing"
+          providerName = "Groq"
+        } else if (provider === "deepseek") {
+          billingUrl = "https://platform.deepseek.com/usage"
+          providerName = "DeepSeek"
+        }
+        
+        setChatError({
+          message: `Your ${providerName} API key has exceeded its quota. Please add credits to continue using the chat.`,
+          billingUrl,
+        })
+      } else {
+        setChatError({
+          message: "An error occurred while processing your message. Please try again.",
+        })
+      }
     },
   })
   
@@ -633,6 +672,7 @@ export default function ChatDetailPage({
     if (!text || status !== "ready") return
     hasUserInteracted.current = true // Cancel auto-delete
     setInput("")
+    setChatError(null) // Clear any previous errors
     setPendingUserMessage(true)
     await addMessage(chatId, "user", text)
     sendMessage({ text })
@@ -641,6 +681,7 @@ export default function ChatDetailPage({
   // Handle prompt suggestion click
   async function handlePromptClick(prompt: string) {
     hasUserInteracted.current = true // Cancel auto-delete
+    setChatError(null) // Clear any previous errors
     setPendingUserMessage(true) // Show loading indicator immediately
     await addMessage(chatId, "user", prompt)
     sendMessage({ text: prompt })
@@ -855,6 +896,38 @@ export default function ChatDetailPage({
             >
               Connect Hover
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* API quota/billing error banner */}
+      {chatError && (
+        <div className="shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+              <AlertCircle className="size-4 shrink-0" />
+              <p className="text-xs sm:text-sm">
+                {chatError.message}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {chatError.billingUrl && (
+                <a
+                  href={chatError.billingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-red-700 sm:px-3 sm:py-1.5 sm:text-sm"
+                >
+                  Add Credits
+                </a>
+              )}
+              <button
+                onClick={() => setChatError(null)}
+                className="shrink-0 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/50 sm:px-3 sm:py-1.5 sm:text-sm"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         </div>
       )}
