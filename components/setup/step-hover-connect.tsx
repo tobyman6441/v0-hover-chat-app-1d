@@ -165,7 +165,7 @@ export function StepHoverConnect({ onComplete, onBack }: StepHoverConnectProps) 
                   size="lg"
                   className="w-full"
                 >
-                  Continue to Hover Ninja<sup className="ml-0.5 text-[10px]">ALPHA</sup>
+                  Continue to Hover Ninja
                   <ArrowRight className="size-4" />
                 </Button>
                 <Button

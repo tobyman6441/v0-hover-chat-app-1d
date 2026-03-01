@@ -80,7 +80,7 @@ export default function InvitePage({
               </p>
             </div>
             <Button variant="outline" onClick={() => router.push("/chat")}>
-              Go to Hover Ninja<sup className="ml-0.5 text-[10px]">ALPHA</sup>
+              Go to Hover Ninja
             </Button>
           </CardContent>
         </Card>
