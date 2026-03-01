@@ -44,7 +44,9 @@ import {
   ChevronRight,
   MoreHorizontal,
   FolderOpen,
+  MessageCircleQuestion,
 } from "lucide-react"
+import { openFeedbackWindow } from "@/components/feedback/feedback-button"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import { PROVIDER_LOGOS } from "@/components/provider-logos"
@@ -303,7 +305,7 @@ export function ChatSidebar({
             className="size-7"
           />
           <span className="text-sm font-semibold text-foreground">
-            Hover Ninja
+            Hover Ninja<sup className="ml-0.5 text-[10px] font-medium text-muted-foreground">ALPHA</sup>
           </span>
         </div>
       </div>
@@ -612,6 +614,15 @@ export function ChatSidebar({
               Settings
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground"
+            onClick={openFeedbackWindow}
+            title="Send Feedback"
+          >
+            <MessageCircleQuestion className="size-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="sm"

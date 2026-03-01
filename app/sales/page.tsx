@@ -136,7 +136,7 @@ export default function SalesPage() {
               height={28}
               className="size-7"
             />
-            <span className="text-sm font-semibold text-foreground">Hover Ninja</span>
+            <span className="text-sm font-semibold text-foreground">Hover Ninja<sup className="ml-0.5 text-[10px] font-medium text-muted-foreground">ALPHA</sup></span>
           </div>
           <span className="text-muted-foreground">/</span>
           <h1 className="text-sm font-medium text-foreground">Sales Pipeline</h1>
