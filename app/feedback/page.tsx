@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle2, Send, Bug, Lightbulb, HelpCircle, MessageSquare } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { CheckCircle2, Send, Bug, Lightbulb, HelpCircle, MessageSquare, Loader2 } from "lucide-react"
 import Image from "next/image"
 
 const feedbackTypes = [
@@ -18,7 +18,29 @@ const feedbackTypes = [
   { value: "general", label: "General Feedback", icon: MessageSquare, description: "Other feedback" },
 ]
 
+// Loading fallback component
+function FeedbackLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+        <span>Loading feedback form...</span>
+      </div>
+    </div>
+  )
+}
+
+// Main page wrapper with Suspense
 export default function FeedbackPage() {
+  return (
+    <Suspense fallback={<FeedbackLoading />}>
+      <FeedbackForm />
+    </Suspense>
+  )
+}
+
+// Actual feedback form that uses useSearchParams
+function FeedbackForm() {
   const searchParams = useSearchParams()
   const context = searchParams.get("context") || ""
   const page = searchParams.get("page") || "/"
