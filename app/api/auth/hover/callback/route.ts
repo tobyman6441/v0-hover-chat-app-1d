@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient, createAdminClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json()
-    const { access_token, refresh_token, expires_in } = tokenData
+    const { access_token, refresh_token } = tokenData
 
     if (!access_token || !refresh_token) {
       return NextResponse.redirect(
@@ -56,13 +56,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Calculate expiry time (default to 2 hours if not provided)
-    const expiresInSeconds = expires_in || 7200
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000)
-
-    // Get the current user and save tokens to their org
+    // Get the current user and save tokens to their org via RPC (bypasses RLS)
     const supabase = await createClient()
-    const adminSupabase = createAdminClient()
     const {
       data: { user },
       error: userError,
@@ -103,15 +98,13 @@ export async function GET(request: NextRequest) {
         hover_connected_at: new Date().toISOString(),
         hover_token_expires_at: expiresAt.toISOString(),
       })
-      .eq("id", membership.org_id)
 
-    console.log("[Hover Callback] Token save result:", { updateError: updateError?.message })
-
-    if (updateError) {
-      console.error("[Hover Callback] Failed to save Hover tokens:", updateError)
-      return NextResponse.redirect(
-        `${appUrl}/setup?hover_error=save_failed`,
-      )
+      if (rpcError) {
+        console.error("Failed to save Hover tokens:", rpcError)
+        return NextResponse.redirect(
+          `${appUrl}/setup?hover_error=save_failed`,
+        )
+      }
     }
 
     console.log("[Hover Callback] Success - tokens saved for org:", membership.org_id)

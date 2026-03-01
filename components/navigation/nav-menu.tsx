@@ -21,9 +21,7 @@ import {
   Wrench,
   Settings,
   Users,
-  MessageCircleQuestion,
 } from "lucide-react"
-import { openFeedbackWindow } from "@/components/feedback/feedback-button"
 import { cn } from "@/lib/utils"
 
 interface NavItem {
@@ -131,17 +129,6 @@ export function NavMenu() {
             </div>
           )
         })}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            setOpen(false)
-            openFeedbackWindow()
-          }}
-          className="flex cursor-pointer items-center gap-3"
-        >
-          <MessageCircleQuestion className="size-4" />
-          <span>Send Feedback</span>
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
