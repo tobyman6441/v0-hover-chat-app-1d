@@ -682,11 +682,14 @@ export async function listAllJobs(): Promise<{
   jobs?: HoverJob[]
   error?: string 
 }> {
+  console.log("[v0] listAllJobs: Getting token...")
   const tokenResult = await getHoverToken()
   
   if ("error" in tokenResult) {
+    console.log("[v0] listAllJobs: Token error:", tokenResult.error)
     return { success: false, error: tokenResult.error }
   }
+  console.log("[v0] listAllJobs: Token retrieved successfully")
 
   const { accessToken, refreshToken } = tokenResult
 
