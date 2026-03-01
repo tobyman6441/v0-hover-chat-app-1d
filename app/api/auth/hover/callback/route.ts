@@ -65,42 +65,55 @@ export async function GET(request: NextRequest) {
     const adminSupabase = createAdminClient()
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser()
 
-    if (user) {
-      // Get user's org_id first
-      const { data: membership } = await adminSupabase
-        .from("org_members")
-        .select("org_id")
-        .eq("user_id", user.id)
-        .single()
+    console.log("[Hover Callback] User lookup:", { userId: user?.id, userError: userError?.message })
 
-      if (membership?.org_id) {
-        // Use admin client to update the organization (bypasses RLS)
-        const { error: updateError } = await adminSupabase
-          .from("organizations")
-          .update({
-            hover_access_token: access_token,
-            hover_refresh_token: refresh_token,
-            hover_connected_at: new Date().toISOString(),
-            hover_token_expires_at: expiresAt.toISOString(),
-          })
-          .eq("id", membership.org_id)
-
-        if (updateError) {
-          console.error("Failed to save Hover tokens:", updateError)
-          return NextResponse.redirect(
-            `${appUrl}/setup?hover_error=save_failed`,
-          )
-        }
-      } else {
-        console.error("User has no organization membership")
-        return NextResponse.redirect(
-          `${appUrl}/setup?hover_error=no_organization`,
-        )
-      }
+    if (!user) {
+      console.error("[Hover Callback] No authenticated user found")
+      return NextResponse.redirect(
+        `${appUrl}/setup?hover_error=not_authenticated`,
+      )
     }
 
+    // Get user's org_id first
+    const { data: membership, error: membershipError } = await adminSupabase
+      .from("org_members")
+      .select("org_id")
+      .eq("user_id", user.id)
+      .single()
+
+    console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, membershipError: membershipError?.message })
+
+    if (!membership?.org_id) {
+      console.error("[Hover Callback] User has no organization membership")
+      return NextResponse.redirect(
+        `${appUrl}/setup?hover_error=no_organization`,
+      )
+    }
+
+    // Use admin client to update the organization (bypasses RLS)
+    const { error: updateError } = await adminSupabase
+      .from("organizations")
+      .update({
+        hover_access_token: access_token,
+        hover_refresh_token: refresh_token,
+        hover_connected_at: new Date().toISOString(),
+        hover_token_expires_at: expiresAt.toISOString(),
+      })
+      .eq("id", membership.org_id)
+
+    console.log("[Hover Callback] Token save result:", { updateError: updateError?.message })
+
+    if (updateError) {
+      console.error("[Hover Callback] Failed to save Hover tokens:", updateError)
+      return NextResponse.redirect(
+        `${appUrl}/setup?hover_error=save_failed`,
+      )
+    }
+
+    console.log("[Hover Callback] Success - tokens saved for org:", membership.org_id)
     return NextResponse.redirect(`${appUrl}/setup?hover_connected=true`)
   } catch (err) {
     console.error("Hover OAuth callback error:", err)
