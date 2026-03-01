@@ -38,7 +38,10 @@ import {
   User,
   UserPlus,
   Users,
+  MessageCircleQuestion,
+  ExternalLink,
 } from "lucide-react"
+import { openFeedbackWindow } from "@/components/feedback/feedback-button"
 import Image from "next/image"
 import { PROVIDER_LOGOS } from "@/components/provider-logos"
 import { cn } from "@/lib/utils"
@@ -690,6 +693,43 @@ export default function SettingsPage() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Help & Feedback Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MessageCircleQuestion className="size-4" />
+                Help & Feedback
+              </CardTitle>
+              <CardDescription>
+                We{"'"}re in alpha and your feedback helps us improve!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={openFeedbackWindow}
+              >
+                <MessageCircleQuestion className="size-4" />
+                Send Feedback
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                asChild
+              >
+                <a href="mailto:support@hover.ninja">
+                  <Mail className="size-4" />
+                  Email Support
+                  <ExternalLink className="ml-auto size-3 text-muted-foreground" />
+                </a>
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Contact us at support@hover.ninja for any questions or issues.
+              </p>
             </CardContent>
           </Card>
         </div>
