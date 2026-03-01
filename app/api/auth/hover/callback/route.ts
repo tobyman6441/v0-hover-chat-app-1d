@@ -77,11 +77,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's org_id first
+    // Get user's org_id first (use members table with consistent ordering)
     const { data: membership, error: membershipError } = await adminSupabase
-      .from("org_members")
-      .select("org_id")
+      .from("members")
+      .select("org_id, organizations!inner(created_at)")
       .eq("user_id", user.id)
+      .order("organizations(created_at)", { ascending: true })
+      .limit(1)
       .single()
 
     console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, membershipError: membershipError?.message })
