@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log("[v0] Hover callback - starting token exchange", { redirectUri, hasCode: !!code })
+    
     const tokenResponse = await fetch("https://hover.to/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,7 +117,8 @@ export async function GET(request: NextRequest) {
     console.log("[Hover Callback] Success - tokens saved for org:", membership.org_id)
     return NextResponse.redirect(`${appUrl}/setup?hover_connected=true`)
   } catch (err) {
-    console.error("Hover OAuth callback error:", err)
+    console.error("[v0] Hover OAuth callback error:", err)
+    console.error("[v0] Error details:", err instanceof Error ? err.message : String(err))
     return NextResponse.redirect(
       `${appUrl}/setup?hover_error=unexpected_error`,
     )
