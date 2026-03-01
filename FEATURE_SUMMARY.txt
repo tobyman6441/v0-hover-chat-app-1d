@@ -1,0 +1,133 @@
+================================================================================
+HOVER NINJA - FEATURE IMPLEMENTATION SUMMARY
+================================================================================
+
+This document summarizes the features implemented before authentication issues
+occurred. Use this as a reference to re-implement these features.
+
+--------------------------------------------------------------------------------
+PROJECT INFO
+--------------------------------------------------------------------------------
+- Repo: tobyman6441/v0-hover-chat-app-1d
+- Supabase Project ID: eibvnutwywsztzhlncht
+- Production URL: hover.ninja
+
+--------------------------------------------------------------------------------
+FEATURE 1: ALPHA SUPERSCRIPT ON LOGO
+--------------------------------------------------------------------------------
+
+DESCRIPTION:
+Add a small "ALPHA" superscript badge next to "Hover Ninja" in the logo/header
+to indicate the app is in alpha stage.
+
+IMPLEMENTATION:
+- Add superscript text "ALPHA" next to the "Hover Ninja" text in the header
+- Style it as a small, subtle badge (smaller font size, uppercase)
+- Should appear wherever the "Hover Ninja" branding is shown (header, sidebar)
+
+STYLING:
+- Font size: ~10px or text-xs
+- Position: superscript (slightly raised)
+- Color: muted/secondary color or same as logo text
+- Can use Tailwind classes like: text-xs align-super opacity-70
+
+LOCATIONS TO UPDATE:
+- Main header/navbar component
+- Sidebar header (if applicable)
+- Any other place the "Hover Ninja" logo text appears
+
+--------------------------------------------------------------------------------
+FEATURE 2: FLOATING FEEDBACK BUTTON
+--------------------------------------------------------------------------------
+
+DESCRIPTION:
+Add a floating feedback button in the bottom-right corner of the app that
+allows users to send feedback via email to support@hover.ninja.
+
+IMPLEMENTATION DETAILS:
+
+1. BUTTON APPEARANCE:
+   - Floating button fixed to bottom-right corner
+   - Contains an icon (message/feedback icon) and text "Feedback"
+   - Styled with the app's design system (rounded, shadow, etc.)
+   - Should be visible on all pages but not obstruct content
+
+2. BUTTON BEHAVIOR:
+   - On click: Opens a mailto link to support@hover.ninja
+   - mailto:support@hover.ninja?subject=Hover%20Ninja%20Feedback
+
+3. COMPONENT STRUCTURE:
+   - Create a FeedbackButton component
+   - Place it in the root layout so it appears on all pages
+   - Position: fixed, bottom-right with some padding (e.g., bottom-4 right-4)
+
+4. STYLING SUGGESTIONS:
+   - Background: Primary color or neutral
+   - Border radius: rounded-full or rounded-lg
+   - Shadow: shadow-lg for floating effect
+   - Padding: comfortable touch target (at least 44x44px)
+   - Z-index: High enough to float above content (z-50)
+
+5. ICON:
+   - Use a feedback/message bubble icon from Lucide React
+   - Suggested icons: MessageCircle, MessageSquare, HelpCircle
+
+EXAMPLE CODE STRUCTURE:
+```tsx
+// components/feedback-button.tsx
+"use client"
+
+import { MessageCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+export function FeedbackButton() {
+  return (
+    <a
+      href="mailto:support@hover.ninja?subject=Hover%20Ninja%20Feedback"
+      className="fixed bottom-4 right-4 z-50"
+    >
+      <Button className="rounded-full shadow-lg gap-2">
+        <MessageCircle className="h-4 w-4" />
+        Feedback
+      </Button>
+    </a>
+  )
+}
+```
+
+PLACEMENT:
+- Import and render in app/layout.tsx (root layout)
+- Place after the main content so it floats above everything
+
+--------------------------------------------------------------------------------
+IMPORTANT NOTES
+--------------------------------------------------------------------------------
+
+1. DATABASE CONSIDERATIONS:
+   - The organizations table uses "members" (NOT "org_members") for user-org mapping
+   - The column is "llm_api_key_encrypted" in the table but returned as "llm_api_key" from RPC
+   - Use the get_org_llm_config RPC function for consistent org selection
+
+2. AUTHENTICATION ISSUES THAT WERE FIXED:
+   - The callback route was using wrong table name (org_members vs members)
+   - The chat API was checking wrong field name (llm_api_key_encrypted vs llm_api_key)
+   - Setup page was redirecting too quickly when hover_connected param was present
+   - These have been fixed in a separate chat - DO NOT modify auth-related code
+
+3. FILES TO AVOID MODIFYING:
+   - app/api/auth/hover/callback/route.ts (auth flow - already fixed)
+   - app/api/chat/route.ts (chat API - already fixed)
+   - Any Supabase RPC functions
+
+--------------------------------------------------------------------------------
+SUMMARY OF CHANGES TO MAKE
+--------------------------------------------------------------------------------
+
+1. Add ALPHA superscript to logo text in header components
+2. Create FeedbackButton component
+3. Add FeedbackButton to root layout
+4. Ensure styling matches the app's design system
+
+================================================================================
+END OF DOCUMENT
+================================================================================
