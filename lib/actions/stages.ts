@@ -190,14 +190,26 @@ export async function updateJobStage(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = createAdminClient()
 
-  // Update the job stage
-  const { error } = await supabase.rpc("update_job_stage", {
-    p_org_id: orgId,
-    p_hover_job_id: hoverJobId,
-    p_stage_id: stageId
-  })
+  // Use direct upsert instead of RPC function (admin client bypasses RLS)
+  // The RPC function uses auth.uid() which is null with service role
+  const { error } = await supabase
+    .from("job_stages")
+    .upsert(
+      {
+        org_id: orgId,
+        hover_job_id: hoverJobId,
+        stage_id: stageId,
+        updated_at: new Date().toISOString()
+      },
+      {
+        onConflict: "org_id,hover_job_id"
+      }
+    )
 
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    console.error("[v0] updateJobStage error:", error)
+    return { success: false, error: error.message }
+  }
 
   // If syncing linked stages, also update linked stage assignments
   if (syncLinkedStages) {
@@ -208,12 +220,20 @@ export async function updateJobStage(
       .single()
 
     if (stage?.linked_stage_id) {
-      // Also assign to the linked stage
-      await supabase.rpc("update_job_stage", {
-        p_org_id: orgId,
-        p_hover_job_id: hoverJobId,
-        p_stage_id: stage.linked_stage_id
-      })
+      // Also assign to the linked stage using direct upsert
+      await supabase
+        .from("job_stages")
+        .upsert(
+          {
+            org_id: orgId,
+            hover_job_id: hoverJobId,
+            stage_id: stage.linked_stage_id,
+            updated_at: new Date().toISOString()
+          },
+          {
+            onConflict: "org_id,hover_job_id"
+          }
+        )
     }
   }
   
