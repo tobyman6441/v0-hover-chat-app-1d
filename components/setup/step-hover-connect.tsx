@@ -46,9 +46,15 @@ export function StepHoverConnect({ onComplete, onBack }: StepHoverConnectProps) 
   useEffect(() => {
     const hoverError = searchParams.get("hover_error")
     const hoverConnected = searchParams.get("hover_connected")
+    const errorDetails = searchParams.get("details")
 
     if (hoverError) {
-      setError(ERROR_MESSAGES[hoverError] || ERROR_MESSAGES.unexpected_error)
+      let errorMessage = ERROR_MESSAGES[hoverError] || ERROR_MESSAGES.unexpected_error
+      // Append details for debugging if available
+      if (errorDetails) {
+        errorMessage += ` (Details: ${decodeURIComponent(errorDetails)})`
+      }
+      setError(errorMessage)
     }
 
     if (hoverConnected === "true") {
