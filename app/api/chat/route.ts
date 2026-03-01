@@ -68,7 +68,6 @@ export async function POST(req: Request) {
     const config = Array.isArray(configData) ? configData[0] : configData
 
     if (configError || !config?.llm_provider || !config?.llm_api_key) {
-      console.error("[v0] LLM config error:", { configError, config })
       return new Response("LLM not configured", { status: 400 })
     }
 

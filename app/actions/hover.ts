@@ -257,8 +257,9 @@ async function fetchJobsWithToken(accessToken: string): Promise<{
     let hasMore = true
 
     while (hasMore) {
+      // Use v2 API for listing jobs as per documentation
       const response = await fetch(
-        `https://hover.to/api/v3/jobs?page=${page}&per=100&sort_by=updated_at&sort_order=DESC&reconstruction_state=completed`,
+        `https://hover.to/api/v2/jobs?page=${page}&per_page=100&sort=updated_at&order=desc&state=completed`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -628,9 +629,9 @@ async function fetchAllJobsWithToken(accessToken: string): Promise<{
     let hasMore = true
 
     while (hasMore) {
-      // Don't filter by reconstruction_state - get all jobs
+      // Use v2 API for listing jobs as per documentation
       const response = await fetch(
-        `https://hover.to/api/v3/jobs?page=${page}&per=100&sort_by=updated_at&sort_order=DESC`,
+        `https://hover.to/api/v2/jobs?page=${page}&per_page=100&sort=updated_at&order=desc`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -682,14 +683,11 @@ export async function listAllJobs(): Promise<{
   jobs?: HoverJob[]
   error?: string 
 }> {
-  console.log("[v0] listAllJobs: Getting token...")
   const tokenResult = await getHoverToken()
   
   if ("error" in tokenResult) {
-    console.log("[v0] listAllJobs: Token error:", tokenResult.error)
     return { success: false, error: tokenResult.error }
   }
-  console.log("[v0] listAllJobs: Token retrieved successfully")
 
   const { accessToken, refreshToken } = tokenResult
 
