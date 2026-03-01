@@ -123,6 +123,7 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
           />
           <span className="hidden text-sm font-semibold text-foreground sm:inline">
             Hover Ninja
+            <sup className="ml-0.5 text-[10px] font-medium text-muted-foreground">ALPHA</sup>
           </span>
         </div>
         <StepIndicator currentStep={currentStep} />
