@@ -19,9 +19,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the Hover token from org_llm_config (same as getHoverToken in hover.ts)
-    const { data: config } = await supabase.rpc("get_org_llm_config", {
+    const { data: configData } = await supabase.rpc("get_org_llm_config", {
       p_user_id: user.id,
     })
+
+    // RPC returns an array of rows, get the first one
+    const config = Array.isArray(configData) ? configData[0] : configData
 
     if (!config?.hover_access_token) {
       return NextResponse.json({ error: "Hover not connected" }, { status: 401 })
