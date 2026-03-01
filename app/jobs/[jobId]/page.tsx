@@ -140,8 +140,6 @@ export default function JobDetailPage() {
   const params = useParams()
   const jobId = Number(params.jobId)
   const { toast } = useToast()
-  
-  console.log("[v0] JobDetailPage loaded with collapsible sections v2")
 
   const [job, setJob] = useState<HoverJobDetails | null>(null)
   const [stages, setStages] = useState<Stage[]>([])
