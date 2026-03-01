@@ -37,12 +37,9 @@ export default function SalesPage() {
 
     // Load jobs from Hover
     const jobsResult = await listAllJobs()
-    console.log("[v0] listAllJobs result:", { success: jobsResult.success, error: jobsResult.error, jobCount: jobsResult.jobs?.length })
     if (jobsResult.success && jobsResult.jobs) {
       setJobs(jobsResult.jobs)
       setFilteredJobs(jobsResult.jobs)
-    } else if (jobsResult.error) {
-      console.error("[v0] Failed to load jobs:", jobsResult.error)
     }
 
     // Load job stage assignments for sales pipeline
