@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser()
 
     if (user) {
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    console.log("[Hover Callback] Success - tokens saved for org:", membership.org_id)
     return NextResponse.redirect(`${appUrl}/setup?hover_connected=true`)
   } catch (err) {
     console.error("Hover OAuth callback error:", err)

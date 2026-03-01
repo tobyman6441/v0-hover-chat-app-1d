@@ -64,11 +64,11 @@ export async function POST(req: Request) {
       { p_user_id: user.id },
     )
 
-    if (configError || !config?.llm_provider || !config?.llm_api_key_encrypted) {
+    if (configError || !config?.llm_provider || !config?.llm_api_key) {
       return new Response("LLM not configured", { status: 400 })
     }
 
-  const model = getModel(config.llm_provider, config.llm_api_key_encrypted)
+  const model = getModel(config.llm_provider, config.llm_api_key)
 
   // Check if Hover is connected for the system prompt
   const hoverConnected = !!config.hover_access_token

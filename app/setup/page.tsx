@@ -47,13 +47,16 @@ function SetupContent() {
     }
   }, [user, isLoading, router])
 
-  // Redirect to chat if onboarding is already complete AND no specific step requested
+  // Redirect to chat if onboarding is already complete AND no specific step/action requested
   const requestedStep = searchParams.get("step")
+  const hoverConnected = searchParams.get("hover_connected")
+  const hoverError = searchParams.get("hover_error")
   useEffect(() => {
-    if (!isLoading && org?.onboarding_complete && !requestedStep) {
+    // Don't redirect if there are hover-related params - let the wizard handle them
+    if (!isLoading && org?.onboarding_complete && !requestedStep && !hoverConnected && !hoverError) {
       router.replace("/chat")
     }
-  }, [isLoading, org, router, requestedStep])
+  }, [isLoading, org, router, requestedStep, hoverConnected, hoverError])
 
   if (isLoading || !user) {
     return (
