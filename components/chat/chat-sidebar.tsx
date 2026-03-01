@@ -304,6 +304,7 @@ export function ChatSidebar({
           />
           <span className="text-sm font-semibold text-foreground">
             Hover Ninja
+            <sup className="ml-0.5 text-[10px] font-medium text-muted-foreground">ALPHA</sup>
           </span>
         </div>
       </div>

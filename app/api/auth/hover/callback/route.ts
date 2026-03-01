@@ -126,10 +126,7 @@ export async function GET(request: NextRequest) {
     console.log("[Hover Callback] Success - tokens saved for org:", membership.org_id)
     return NextResponse.redirect(`${appUrl}/setup?hover_connected=true`)
   } catch (err) {
-    console.error("[v0] Hover OAuth callback error:", err)
-    console.error("[v0] Error details:", err instanceof Error ? err.message : String(err))
-    return NextResponse.redirect(
-      `${appUrl}/setup?hover_error=unexpected_error`,
-    )
+    console.error("Hover OAuth callback error:", err)
+    return NextResponse.redirect(`${appUrl}/setup?hover_error=unexpected_error`)
   }
 }
