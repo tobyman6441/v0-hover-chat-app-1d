@@ -9,7 +9,7 @@ import Link from "next/link"
 import { NavMenu } from "@/components/navigation/nav-menu"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getStages, getJobStages, initializeDefaultStages, type Stage, type JobStage } from "@/lib/actions/stages"
+import { getStages, getJobStagesForPipeline, initializeDefaultStages, type Stage, type JobStage } from "@/lib/actions/stages"
 import { listAllJobs, type HoverJob } from "@/app/actions/hover"
 
 interface PipelineStageData {
@@ -25,7 +25,8 @@ export default function DashboardPage() {
   const [salesStages, setSalesStages] = useState<Stage[]>([])
   const [productionStages, setProductionStages] = useState<Stage[]>([])
   const [jobs, setJobs] = useState<HoverJob[]>([])
-  const [jobStageMap, setJobStageMap] = useState<Record<number, string>>({})
+  const [salesJobStageMap, setSalesJobStageMap] = useState<Record<number, string>>({})
+  const [productionJobStageMap, setProductionJobStageMap] = useState<Record<number, string>>({})
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -46,16 +47,28 @@ export default function DashboardPage() {
       setJobs(jobsResult.jobs)
     }
 
-    // Load all job stage assignments
-    const jobStagesResult = await getJobStages(orgId)
-    if (jobStagesResult.jobStages) {
+    // Load job stage assignments for sales pipeline
+    const salesJobStagesResult = await getJobStagesForPipeline(orgId, "sales")
+    if (salesJobStagesResult.jobStages) {
       const map: Record<number, string> = {}
-      jobStagesResult.jobStages.forEach((js: JobStage) => {
+      salesJobStagesResult.jobStages.forEach((js: JobStage) => {
         if (js.stage_id) {
           map[js.hover_job_id] = js.stage_id
         }
       })
-      setJobStageMap(map)
+      setSalesJobStageMap(map)
+    }
+
+    // Load job stage assignments for production pipeline
+    const productionJobStagesResult = await getJobStagesForPipeline(orgId, "production")
+    if (productionJobStagesResult.jobStages) {
+      const map: Record<number, string> = {}
+      productionJobStagesResult.jobStages.forEach((js: JobStage) => {
+        if (js.stage_id) {
+          map[js.hover_job_id] = js.stage_id
+        }
+      })
+      setProductionJobStageMap(map)
     }
 
     setIsLoadingData(false)
@@ -96,29 +109,16 @@ export default function DashboardPage() {
     return job.deliverable_cost || 0
   }
 
-  // Get all stage IDs for a pipeline type
-  const salesStageIds = new Set(salesStages.map(s => s.id))
-  const productionStageIds = new Set(productionStages.map(s => s.id))
-
-  const getPipelineData = (stages: Stage[], pipelineType: "sales" | "production"): PipelineStageData[] => {
+  const getPipelineData = (stages: Stage[], jobStageMap: Record<number, string>, includeUnassigned: boolean): PipelineStageData[] => {
     return stages.map(stage => {
       const stageJobs = jobs.filter(job => {
         const assignedStageId = jobStageMap[job.id]
         
-        if (pipelineType === "production") {
-          // For production: only show jobs explicitly assigned to production stages
-          // No unassigned jobs should appear in production
-          if (!assignedStageId || !productionStageIds.has(assignedStageId)) {
-            return false
-          }
-          return assignedStageId === stage.id
-        } else {
-          // For sales: unassigned jobs go to first stage
-          if (!assignedStageId || !salesStageIds.has(assignedStageId)) {
-            return stage.sort_order === 0
-          }
-          return assignedStageId === stage.id
+        if (!assignedStageId) {
+          // Unassigned jobs go to first stage only if includeUnassigned is true (sales)
+          return includeUnassigned && stage.sort_order === 0
         }
+        return assignedStageId === stage.id
       })
 
       const totalValue = stageJobs.reduce((sum, job) => sum + getJobValue(job), 0)
@@ -133,8 +133,10 @@ export default function DashboardPage() {
     })
   }
 
-  const salesData = getPipelineData(salesStages, "sales")
-  const productionData = getPipelineData(productionStages, "production")
+  // Sales: include unassigned jobs in first stage
+  // Production: only show jobs explicitly assigned to production stages
+  const salesData = getPipelineData(salesStages, salesJobStageMap, true)
+  const productionData = getPipelineData(productionStages, productionJobStageMap, false)
 
   const totalSalesValue = salesData.reduce((sum, d) => sum + d.totalValue, 0)
   const totalWeightedValue = salesData.reduce((sum, d) => sum + d.weightedValue, 0)
@@ -189,7 +191,7 @@ export default function DashboardPage() {
         ) : (
           <div className="mx-auto max-w-6xl space-y-6">
             {/* Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Pipeline</CardTitle>
@@ -245,13 +247,13 @@ export default function DashboardPage() {
 
             {/* Sales Pipeline Overview */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Sales Pipeline</CardTitle>
                   <CardDescription>Revenue breakdown by stage</CardDescription>
                 </div>
                 <Link href="/sales">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
                     View Board
                     <ArrowRight className="ml-2 size-4" />
                   </Button>
@@ -260,36 +262,40 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="space-y-4">
                   {salesData.map((data) => (
-                    <div key={data.stage.id} className="flex items-center gap-4">
-                      <div className="w-40 truncate">
-                        <span className="text-sm font-medium">{data.stage.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {data.stage.probability}%
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex h-8 overflow-hidden rounded-md bg-muted">
-                          <div 
-                            className="bg-primary transition-all"
-                            style={{ 
-                              width: totalSalesValue > 0 
-                                ? `${(data.totalValue / totalSalesValue) * 100}%` 
-                                : '0%' 
-                            }}
-                          />
+                    <div key={data.stage.id} className="space-y-2">
+                      {/* Mobile: Stack vertically */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{data.stage.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {data.stage.probability}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-right">
+                          <div>
+                            <div className="text-sm font-medium">{formatCurrency(data.totalValue)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {data.jobs.length} {data.jobs.length === 1 ? "job" : "jobs"}
+                            </div>
+                          </div>
+                          <div className="hidden sm:block">
+                            <div className="text-sm text-muted-foreground">
+                              {formatCurrency(data.weightedValue)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">weighted</div>
+                          </div>
                         </div>
                       </div>
-                      <div className="w-28 text-right">
-                        <div className="text-sm font-medium">{formatCurrency(data.totalValue)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {data.jobs.length} jobs
-                        </div>
-                      </div>
-                      <div className="w-24 text-right">
-                        <div className="text-sm text-muted-foreground">
-                          {formatCurrency(data.weightedValue)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">weighted</div>
+                      {/* Progress bar */}
+                      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+                        <div 
+                          className="bg-primary transition-all"
+                          style={{ 
+                            width: totalSalesValue > 0 
+                              ? `${(data.totalValue / totalSalesValue) * 100}%` 
+                              : '0%' 
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -299,13 +305,13 @@ export default function DashboardPage() {
 
             {/* Production Pipeline Overview */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>Production Pipeline</CardTitle>
                   <CardDescription>Job progress through production</CardDescription>
                 </div>
                 <Link href="/production">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
                     View Board
                     <ArrowRight className="ml-2 size-4" />
                   </Button>
@@ -314,27 +320,27 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="space-y-4">
                   {productionData.map((data) => (
-                    <div key={data.stage.id} className="flex items-center gap-4">
-                      <div className="w-40 truncate">
+                    <div key={data.stage.id} className="space-y-2">
+                      {/* Mobile: Stack vertically */}
+                      <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{data.stage.name}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex h-8 overflow-hidden rounded-md bg-muted">
-                          <div 
-                            className="bg-chart-2 transition-all"
-                            style={{ 
-                              width: totalJobs > 0 
-                                ? `${(data.jobs.length / totalJobs) * 100}%` 
-                                : '0%' 
-                            }}
-                          />
+                        <div className="text-right">
+                          <div className="text-sm font-medium">{formatCurrency(data.totalValue)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {data.jobs.length} {data.jobs.length === 1 ? "job" : "jobs"}
+                          </div>
                         </div>
                       </div>
-                      <div className="w-28 text-right">
-                        <div className="text-sm font-medium">{formatCurrency(data.totalValue)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {data.jobs.length} jobs
-                        </div>
+                      {/* Progress bar */}
+                      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+                        <div 
+                          className="bg-chart-2 transition-all"
+                          style={{ 
+                            width: totalJobs > 0 
+                              ? `${(data.jobs.length / totalJobs) * 100}%` 
+                              : '0%' 
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
