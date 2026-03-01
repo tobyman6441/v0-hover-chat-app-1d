@@ -28,6 +28,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   unexpected_error:
     "Something went wrong during authorization. Please try again.",
   access_denied: "Authorization was denied. Please try again and click Allow.",
+  no_organization:
+    "No organization found for your account. Please complete the onboarding process first.",
+  not_authenticated:
+    "You must be logged in to connect Hover. Please sign in and try again.",
+  save_failed:
+    "Failed to save Hover connection. Please try again.",
 }
 
 interface StepHoverConnectProps {
