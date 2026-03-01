@@ -82,14 +82,21 @@ export async function GET(request: NextRequest) {
     // Use admin client to bypass RLS
     const adminSupabase = createAdminClient()
 
-    // Get user's org_id using RPC function for consistent org selection across the app
-    const { data: config, error: configError } = await adminSupabase.rpc("get_org_llm_config", {
-      p_user_id: user.id,
+    // Get user's org_id directly from members table (admin client bypasses RLS)
+    const { data: membershipData, error: membershipError } = await adminSupabase
+      .from("members")
+      .select("org_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .single()
+
+    console.log("[Hover Callback] Membership lookup:", { 
+      userId: user.id,
+      membershipData,
+      membershipError: membershipError?.message 
     })
     
-    const membership = config ? { org_id: config.org_id } : null
-
-    console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, configError: configError?.message })
+    const membership = membershipData
 
     if (!membership?.org_id) {
       console.error("[Hover Callback] User has no organization membership")
