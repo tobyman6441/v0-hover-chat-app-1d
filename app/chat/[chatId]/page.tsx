@@ -31,7 +31,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react"
-import { NinjaIcon } from "@/components/icons/ninja-icon"
+
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { PROVIDER_LOGOS } from "@/components/provider-logos"
@@ -965,8 +965,14 @@ export default function ChatDetailPage({
                 )}
               >
                 {msg.role === "assistant" && (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <NinjaIcon className="size-4 text-primary" />
+                  <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                    <Image
+                      src="/images/hover-ninja-logo.png"
+                      alt="Hover Ninja"
+                      width={32}
+                      height={32}
+                      className="size-8 object-cover"
+                    />
                   </div>
                 )}
                 <div
@@ -1006,8 +1012,14 @@ export default function ChatDetailPage({
           {/* Show typing indicator when streaming/pending */}
           {isStreaming && (
             <div className="flex gap-3">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <NinjaIcon className="size-4 text-primary" />
+              <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                <Image
+                  src="/images/hover-ninja-logo.png"
+                  alt="Hover Ninja"
+                  width={32}
+                  height={32}
+                  className="size-8 object-cover"
+                />
               </div>
               <div className="flex items-center gap-1 rounded-xl bg-muted px-4 py-3">
                 <span className="size-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
