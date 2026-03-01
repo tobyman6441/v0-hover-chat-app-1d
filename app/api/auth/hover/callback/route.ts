@@ -77,8 +77,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's org_id first (use members table)
-    // Use RPC function for consistent org selection across the app
+    // Get user's org_id using RPC function for consistent org selection across the app
     const { data: config, error: configError } = await adminSupabase.rpc("get_org_llm_config", {
       p_user_id: user.id,
     })
