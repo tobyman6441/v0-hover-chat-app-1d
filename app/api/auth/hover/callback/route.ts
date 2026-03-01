@@ -77,14 +77,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's org_id first (use members table with consistent ordering)
-    const { data: membership, error: membershipError } = await adminSupabase
-      .from("members")
-      .select("org_id, organizations!inner(created_at)")
-      .eq("user_id", user.id)
-      .order("organizations(created_at)", { ascending: true })
-      .limit(1)
-      .single()
+    // Get user's org_id first (use members table)
+    // Use RPC function for consistent org selection across the app
+    const { data: config, error: configError } = await adminSupabase.rpc("get_org_llm_config", {
+      p_user_id: user.id,
+    })
+    
+    const membership = config ? { org_id: config.org_id } : null
+    const membershipError = configError
 
     console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, membershipError: membershipError?.message })
 
