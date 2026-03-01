@@ -96,14 +96,29 @@ export default function DashboardPage() {
     return job.deliverable_cost || 0
   }
 
-  const getPipelineData = (stages: Stage[]): PipelineStageData[] => {
+  // Get all stage IDs for a pipeline type
+  const salesStageIds = new Set(salesStages.map(s => s.id))
+  const productionStageIds = new Set(productionStages.map(s => s.id))
+
+  const getPipelineData = (stages: Stage[], pipelineType: "sales" | "production"): PipelineStageData[] => {
     return stages.map(stage => {
       const stageJobs = jobs.filter(job => {
         const assignedStageId = jobStageMap[job.id]
-        if (!assignedStageId) {
-          return stage.sort_order === 0 // First stage gets unassigned jobs
+        
+        if (pipelineType === "production") {
+          // For production: only show jobs explicitly assigned to production stages
+          // No unassigned jobs should appear in production
+          if (!assignedStageId || !productionStageIds.has(assignedStageId)) {
+            return false
+          }
+          return assignedStageId === stage.id
+        } else {
+          // For sales: unassigned jobs go to first stage
+          if (!assignedStageId || !salesStageIds.has(assignedStageId)) {
+            return stage.sort_order === 0
+          }
+          return assignedStageId === stage.id
         }
-        return assignedStageId === stage.id
       })
 
       const totalValue = stageJobs.reduce((sum, job) => sum + getJobValue(job), 0)
@@ -118,8 +133,8 @@ export default function DashboardPage() {
     })
   }
 
-  const salesData = getPipelineData(salesStages)
-  const productionData = getPipelineData(productionStages)
+  const salesData = getPipelineData(salesStages, "sales")
+  const productionData = getPipelineData(productionStages, "production")
 
   const totalSalesValue = salesData.reduce((sum, d) => sum + d.totalValue, 0)
   const totalWeightedValue = salesData.reduce((sum, d) => sum + d.weightedValue, 0)
