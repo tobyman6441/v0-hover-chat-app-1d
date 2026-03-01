@@ -257,9 +257,9 @@ async function fetchJobsWithToken(accessToken: string): Promise<{
     let hasMore = true
 
     while (hasMore) {
-      // Use v2 API for listing jobs - fetch all and filter client-side for completed models
+      // Use v3 API for listing jobs - includes reconstruction_state and models with state
       const response = await fetch(
-        `https://hover.to/api/v2/jobs?page=${page}&per_page=100&sort=updated_at&order=desc`,
+        `https://hover.to/api/v3/jobs?page=${page}&per=100&sort_by=updated_at&sort_order=DESC`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -636,10 +636,10 @@ async function fetchAllJobsWithToken(accessToken: string): Promise<{
     let page = 1
     let hasMore = true
 
-    while (hasMore) {
-      // Use v2 API for listing jobs as per documentation
-      const response = await fetch(
-        `https://hover.to/api/v2/jobs?page=${page}&per_page=100&sort=updated_at&order=desc`,
+  while (hasMore) {
+  // Use v3 API for listing jobs - includes reconstruction_state and models with state
+  const response = await fetch(
+  `https://hover.to/api/v3/jobs?page=${page}&per=100&sort_by=updated_at&sort_order=DESC`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

@@ -37,17 +37,57 @@ grant_type=refresh_token&refresh_token={refresh_token}&client_id={CLIENT_ID}&cli
 
 ## Hover API Endpoints
 
-List Jobs: GET /api/v2/jobs
-- Query params: page, per_page, sort, order, search, state
-- Response: { results: HoverJob[], pagination: {...} }
+### List Jobs: GET /api/v3/jobs (PREFERRED - Use v3 for listing)
+Documentation: https://developers.hover.to/reference/list-jobs
 
-Get Job Details: GET /api/v3/jobs/{job_id}
+Query Parameters:
+- `page` (integer, default: 1) - Page number for pagination
+- `per` (integer, default: 25, max: 100) - Results per page
+- `sort_by` (string) - Sort field: completed_at, created_at, or updated_at
+- `sort_order` (string, default: DESC) - Sort order: ASC or DESC
+- `search` (string, min 3 chars) - Search across job name, address, or user
+- `archived` (boolean, default: false) - When true, only archived jobs returned
+- `example` (boolean, default: false) - When true, only example jobs returned
+- `updated_since` (string) - Seconds since EPOCH, only jobs updated since
+- `reconstruction_state` (string) - Filter by "failed" or "completed"
+- `deliverable_ids[]` (array) - Filter by deliverable type: 1, 2, 3, 5, 6, 8
+
+Response includes:
+- `results[]` - Array of jobs with full details including:
+  - `reconstruction_state` - Job-level state ("completed", "draft", "failed", etc.)
+  - `models[]` - Array of models with `state` ("complete", "uploading", etc.)
+  - `models[].artifacts.measurements` - URLs to PDF, JSON, XLSX measurement files
+  - `models[].images[]` - Array of model images
+- `pagination` - { current_page, next_page }
+
+Example Response:
+```json
+{
+  "results": [{
+    "id": 17344154,
+    "name": "My Awesome Job",
+    "reconstruction_state": "completed",
+    "models": [{
+      "id": 17338410,
+      "state": "complete",
+      "artifacts": {
+        "measurements": {
+          "json": "https://hover.to/api/v3/models/17338410/artifacts/measurements.json"
+        }
+      }
+    }]
+  }],
+  "pagination": { "current_page": 1, "next_page": 2 }
+}
+```
+
+### Get Job Details: GET /api/v3/jobs/{job_id}
 - Response: Full job details including inspections array
 
-Get Job Photos: GET /api/v2/jobs/{job_id}/photos
+### Get Job Photos: GET /api/v2/jobs/{job_id}/photos
 - Response: { images: [...], design_images: [...], inspection_images: [...] }
 
-Get Job Measurements: GET /api/v2/jobs/{job_id}/measurements
+### Get Job Measurements: GET /api/v2/jobs/{job_id}/measurements
 - Response: Structured measurements by category (roof, siding, windows, etc.)
 
 
