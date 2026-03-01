@@ -38,7 +38,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { useToast } from "@/hooks/use-toast"
-import { MeasurementsDisplay } from "@/components/chat/measurements-display"
+import { MeasurementsDisplayInline } from "@/components/chat/measurements-display"
 import { 
   getJobPhotos, 
   getMeasurements,
@@ -140,6 +140,8 @@ export default function JobDetailPage() {
   const params = useParams()
   const jobId = Number(params.jobId)
   const { toast } = useToast()
+  
+  console.log("[v0] JobDetailPage loaded with collapsible sections v2")
 
   const [job, setJob] = useState<HoverJobDetails | null>(null)
   const [stages, setStages] = useState<Stage[]>([])
@@ -464,8 +466,8 @@ export default function JobDetailPage() {
 
             {/* Measurements - Using the same component as chat */}
             {(rawMeasurements || measurementsLoading) && (
-              <Collapsible open={measurementsOpen} onOpenChange={setMeasurementsOpen}>
-                <Card>
+              <Card>
+                <Collapsible open={measurementsOpen} onOpenChange={setMeasurementsOpen}>
                   <CardHeader className="pb-3">
                     <CollapsibleTrigger asChild>
                       <button className="flex w-full items-center justify-between text-left">
@@ -489,16 +491,12 @@ export default function JobDetailPage() {
                           <span className="text-sm">Loading measurements...</span>
                         </div>
                       ) : rawMeasurements ? (
-                        <MeasurementsDisplay 
-                          measurements={rawMeasurements}
-                          jobName={job?.name || `Job #${jobId}`}
-                          address={address || ""}
-                        />
+                        <MeasurementsDisplayInline measurements={rawMeasurements} />
                       ) : null}
                     </CardContent>
                   </CollapsibleContent>
-                </Card>
-              </Collapsible>
+                </Collapsible>
+              </Card>
             )}
 
             {/* Scan Photos */}
