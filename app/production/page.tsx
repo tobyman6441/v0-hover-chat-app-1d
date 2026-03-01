@@ -35,23 +35,29 @@ export default function ProductionPage() {
       setStages(stagesResult.stages)
     }
 
-    // Load jobs from Hover
-    const jobsResult = await listAllJobs()
-    if (jobsResult.success && jobsResult.jobs) {
-      setJobs(jobsResult.jobs)
-      setFilteredJobs(jobsResult.jobs)
-    }
-
-    // Load job stage assignments for production pipeline
+    // Load job stage assignments for production pipeline FIRST
+    // Only jobs with assignments in production pipeline should appear
     const jobStagesResult = await getJobStagesForPipeline(orgId, "production")
+    const productionJobIds = new Set<number>()
+    const map: Record<number, string> = {}
+    
     if (jobStagesResult.jobStages) {
-      const map: Record<number, string> = {}
       jobStagesResult.jobStages.forEach((js: JobStage) => {
         if (js.stage_id) {
           map[js.hover_job_id] = js.stage_id
+          productionJobIds.add(js.hover_job_id)
         }
       })
       setJobStageMap(map)
+    }
+
+    // Load jobs from Hover, but only keep those that are in production pipeline
+    const jobsResult = await listAllJobs()
+    if (jobsResult.success && jobsResult.jobs) {
+      // Filter to only show jobs that have been explicitly assigned to production
+      const productionJobs = jobsResult.jobs.filter(job => productionJobIds.has(job.id))
+      setJobs(productionJobs)
+      setFilteredJobs(productionJobs)
     }
 
     setIsLoadingData(false)
