@@ -87,9 +87,16 @@ export async function GET(request: NextRequest) {
       p_user_id: user.id,
     })
     
-    const membership = config ? { org_id: config.org_id } : null
+    // RPC returns an array of rows, get the first one
+    const orgConfig = Array.isArray(config) ? config[0] : config
+    const membership = orgConfig ? { org_id: orgConfig.org_id } : null
 
-    console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, configError: configError?.message })
+    console.log("[Hover Callback] Membership lookup:", { 
+      userId: user.id,
+      configData: config,
+      orgId: membership?.org_id, 
+      configError: configError?.message 
+    })
 
     if (!membership?.org_id) {
       console.error("[Hover Callback] User has no organization membership")
