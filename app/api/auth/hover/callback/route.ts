@@ -40,12 +40,14 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorBody = await tokenResponse.text()
       console.error(
-        "Hover token exchange failed:",
+        "[v0] Hover token exchange failed:",
         tokenResponse.status,
         errorBody,
       )
+      // Include more specific error info in the redirect for debugging
+      const errorMessage = encodeURIComponent(errorBody.substring(0, 100))
       return NextResponse.redirect(
-        `${appUrl}/setup?hover_error=token_exchange_failed`,
+        `${appUrl}/setup?hover_error=token_exchange_failed&details=${errorMessage}`,
       )
     }
 
