@@ -34,9 +34,12 @@ async function getHoverToken(forceRefresh = false) {
     return { error: "Not authenticated" }
   }
 
-  const { data: config } = await supabase.rpc("get_org_llm_config", {
+  const { data: configData } = await supabase.rpc("get_org_llm_config", {
     p_user_id: user.id,
   })
+
+  // RPC returns an array of rows, get the first one
+  const config = Array.isArray(configData) ? configData[0] : configData
 
   if (!config?.hover_access_token) {
     return { error: "Hover not connected. Please connect Hover in Settings." }
@@ -679,11 +682,14 @@ export async function listAllJobs(): Promise<{
   jobs?: HoverJob[]
   error?: string 
 }> {
+  console.log("[v0] listAllJobs: Getting token...")
   const tokenResult = await getHoverToken()
   
   if ("error" in tokenResult) {
+    console.log("[v0] listAllJobs: Token error:", tokenResult.error)
     return { success: false, error: tokenResult.error }
   }
+  console.log("[v0] listAllJobs: Token retrieved successfully")
 
   const { accessToken, refreshToken } = tokenResult
 

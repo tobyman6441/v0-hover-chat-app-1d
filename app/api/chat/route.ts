@@ -59,12 +59,16 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 401 })
     }
 
-    const { data: config, error: configError } = await supabase.rpc(
+    const { data: configData, error: configError } = await supabase.rpc(
       "get_org_llm_config",
       { p_user_id: user.id },
     )
 
+    // RPC returns an array of rows, get the first one
+    const config = Array.isArray(configData) ? configData[0] : configData
+
     if (configError || !config?.llm_provider || !config?.llm_api_key) {
+      console.error("[v0] LLM config error:", { configError, config })
       return new Response("LLM not configured", { status: 400 })
     }
 
