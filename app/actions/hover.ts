@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 
 interface CaptureRequestParams {
   // Required fields
@@ -28,6 +28,7 @@ interface CaptureRequestResult {
 
 async function getHoverToken(forceRefresh = false) {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
@@ -42,16 +43,34 @@ async function getHoverToken(forceRefresh = false) {
     return { error: "Hover not connected. Please connect Hover in Settings." }
   }
 
-  // Check if token needs refresh based on age
-  const connectedAt = config.hover_connected_at ? new Date(config.hover_connected_at) : null
-  const tokenAgeHours = connectedAt ? (Date.now() - connectedAt.getTime()) / (1000 * 60 * 60) : 999
-  const needsRefresh = forceRefresh || tokenAgeHours > 1.5
+  // Check if token needs refresh based on expiry time or age
+  // Use hover_token_expires_at if available, otherwise fall back to hover_connected_at
+  let needsRefresh = forceRefresh
+  
+  if (!forceRefresh) {
+    const expiresAt = config.hover_token_expires_at ? new Date(config.hover_token_expires_at) : null
+    const connectedAt = config.hover_connected_at ? new Date(config.hover_connected_at) : null
+    
+    if (expiresAt) {
+      // Refresh 5 minutes before expiry
+      const bufferMs = 5 * 60 * 1000
+      needsRefresh = Date.now() > (expiresAt.getTime() - bufferMs)
+    } else if (connectedAt) {
+      // Fall back to age-based check (refresh after 1.5 hours)
+      const tokenAgeHours = (Date.now() - connectedAt.getTime()) / (1000 * 60 * 60)
+      needsRefresh = tokenAgeHours > 1.5
+    } else {
+      needsRefresh = true
+    }
+  }
 
   let accessToken = config.hover_access_token
 
   // Try to refresh the token if needed and we have a refresh token
   if (needsRefresh && config.hover_refresh_token) {
     try {
+      console.log("[Hover] Attempting token refresh for org:", config.org_id)
+      
       const refreshResponse = await fetch("https://hover.to/oauth/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -66,26 +85,39 @@ async function getHoverToken(forceRefresh = false) {
       if (refreshResponse.ok) {
         const tokenData = await refreshResponse.json()
         if (tokenData.access_token) {
-          // Update the database with the new tokens
-          const { error: updateError } = await supabase
+          // Calculate expiry time (Hover tokens typically last 2 hours)
+          const expiresInSeconds = tokenData.expires_in || 7200
+          const expiresAt = new Date(Date.now() + expiresInSeconds * 1000)
+          
+          // Use admin client to bypass RLS for the update
+          const { error: updateError } = await adminSupabase
             .from("organizations")
             .update({
               hover_access_token: tokenData.access_token,
               hover_refresh_token: tokenData.refresh_token || config.hover_refresh_token,
               hover_connected_at: new Date().toISOString(),
+              hover_token_expires_at: expiresAt.toISOString(),
             })
             .eq("id", config.org_id)
           
-          if (!updateError) {
+          if (updateError) {
+            console.error("[Hover] Failed to persist refreshed token:", updateError)
+          } else {
+            console.log("[Hover] Token refreshed and persisted successfully")
             accessToken = tokenData.access_token
           }
         }
-      } else if (forceRefresh) {
-        // If force refresh was requested but failed, return an error
-        return { error: "Failed to refresh Hover token. Please reconnect Hover in Settings." }
+      } else {
+        const errorText = await refreshResponse.text()
+        console.error("[Hover] Token refresh failed:", refreshResponse.status, errorText)
+        
+        if (forceRefresh) {
+          return { error: "Failed to refresh Hover token. Please reconnect Hover in Settings." }
+        }
       }
     } catch (err) {
-      // If force refresh was requested but failed, return an error
+      console.error("[Hover] Token refresh exception:", err)
+      
       if (forceRefresh) {
         return { error: `Token refresh failed: ${err}. Please reconnect Hover in Settings.` }
       }
