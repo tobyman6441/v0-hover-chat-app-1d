@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -48,13 +48,16 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json()
-    const { access_token, refresh_token } = tokenData
+    const { access_token, refresh_token, expires_in } = tokenData
 
     if (!access_token || !refresh_token) {
       return NextResponse.redirect(
         `${appUrl}/setup?hover_error=invalid_token_response`,
       )
     }
+
+    // Calculate token expiration time
+    const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000)
 
     // Get the current user and save tokens to their org via RPC (bypasses RLS)
     const supabase = await createClient()
@@ -72,15 +75,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Use admin client to bypass RLS
+    const adminSupabase = createAdminClient()
+
     // Get user's org_id using RPC function for consistent org selection across the app
     const { data: config, error: configError } = await adminSupabase.rpc("get_org_llm_config", {
       p_user_id: user.id,
     })
     
     const membership = config ? { org_id: config.org_id } : null
-    const membershipError = configError
 
-    console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, membershipError: membershipError?.message })
+    console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, configError: configError?.message })
 
     if (!membership?.org_id) {
       console.error("[Hover Callback] User has no organization membership")
@@ -98,13 +103,13 @@ export async function GET(request: NextRequest) {
         hover_connected_at: new Date().toISOString(),
         hover_token_expires_at: expiresAt.toISOString(),
       })
+      .eq("id", membership.org_id)
 
-      if (rpcError) {
-        console.error("Failed to save Hover tokens:", rpcError)
-        return NextResponse.redirect(
-          `${appUrl}/setup?hover_error=save_failed`,
-        )
-      }
+    if (updateError) {
+      console.error("Failed to save Hover tokens:", updateError)
+      return NextResponse.redirect(
+        `${appUrl}/setup?hover_error=save_failed`,
+      )
     }
 
     console.log("[Hover Callback] Success - tokens saved for org:", membership.org_id)
