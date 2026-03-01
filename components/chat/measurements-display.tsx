@@ -41,7 +41,8 @@ function getNestedValue(obj: unknown, path: string): unknown {
   return current
 }
 
-export function MeasurementsDisplay({ measurements, jobName, address }: MeasurementsDisplayProps) {
+// Helper function to extract measurement data
+function extractMeasurementData(measurements: Record<string, unknown>) {
   const summary = getNestedValue(measurements, "summary") as Record<string, unknown> | undefined
   const roof = (summary?.roof || getNestedValue(measurements, "roof")) as Record<string, unknown> | undefined
   const area = (summary?.area || getNestedValue(measurements, "area")) as Record<string, unknown> | undefined
@@ -52,11 +53,25 @@ export function MeasurementsDisplay({ measurements, jobName, address }: Measurem
   const sidingWaste = (summary?.siding_waste || getNestedValue(measurements, "siding_waste")) as Record<string, unknown> | undefined
   const footprint = getNestedValue(measurements, "footprint") as Record<string, unknown> | undefined
 
-  // Determine the first available tab
   const defaultTab = roof ? "roof" : area ? "siding" : trim ? "trim" : openings ? "openings" : roofline ? "roofline" : footprint ? "footprint" : corners ? "corners" : "roof"
-
-  // Check if we have any data to show
   const hasData = roof || area || trim || openings || roofline || footprint || corners
+
+  return { roof, area, trim, openings, roofline, corners, sidingWaste, footprint, defaultTab, hasData }
+}
+
+// Inline version without Card wrapper - for embedding in other Cards
+export function MeasurementsDisplayInline({ measurements }: { measurements: Record<string, unknown> }) {
+  const { roof, area, trim, openings, roofline, corners, sidingWaste, footprint, defaultTab, hasData } = extractMeasurementData(measurements)
+
+  if (!hasData) {
+    return <p className="text-sm text-muted-foreground">No measurement data available for this job.</p>
+  }
+
+  return <MeasurementsTabs {...{ roof, area, trim, openings, roofline, corners, sidingWaste, footprint, defaultTab }} />
+}
+
+export function MeasurementsDisplay({ measurements, jobName, address }: MeasurementsDisplayProps) {
+  const { roof, area, trim, openings, roofline, corners, sidingWaste, footprint, defaultTab, hasData } = extractMeasurementData(measurements)
 
   if (!hasData) {
     return (
@@ -79,16 +94,45 @@ export function MeasurementsDisplay({ measurements, jobName, address }: Measurem
         <p className="text-sm text-muted-foreground">{address}</p>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="mb-4 flex h-auto flex-wrap gap-1">
-            {roof && <TabsTrigger value="roof" className="gap-1.5"><Layers className="size-3.5" />Roof</TabsTrigger>}
-            {area && <TabsTrigger value="siding" className="gap-1.5"><Square className="size-3.5" />Siding</TabsTrigger>}
-            {trim && <TabsTrigger value="trim" className="gap-1.5"><Ruler className="size-3.5" />Trim</TabsTrigger>}
-            {openings && <TabsTrigger value="openings" className="gap-1.5"><DoorOpen className="size-3.5" />Openings</TabsTrigger>}
-            {roofline && <TabsTrigger value="roofline" className="gap-1.5"><Home className="size-3.5" />Roofline</TabsTrigger>}
-            {footprint && <TabsTrigger value="footprint" className="gap-1.5"><Grid3X3 className="size-3.5" />Footprint</TabsTrigger>}
-            {corners && <TabsTrigger value="corners" className="gap-1.5"><CornerDownRight className="size-3.5" />Corners</TabsTrigger>}
-          </TabsList>
+        <MeasurementsTabs {...{ roof, area, trim, openings, roofline, corners, sidingWaste, footprint, defaultTab }} />
+      </CardContent>
+    </Card>
+  )
+}
+
+// Shared Tabs component used by both MeasurementsDisplay and MeasurementsDisplayInline
+function MeasurementsTabs({
+  roof,
+  area,
+  trim,
+  openings,
+  roofline,
+  corners,
+  sidingWaste,
+  footprint,
+  defaultTab,
+}: {
+  roof?: Record<string, unknown>
+  area?: Record<string, unknown>
+  trim?: Record<string, unknown>
+  openings?: Record<string, unknown>
+  roofline?: Record<string, unknown>
+  corners?: Record<string, unknown>
+  sidingWaste?: Record<string, unknown>
+  footprint?: Record<string, unknown>
+  defaultTab: string
+}) {
+  return (
+    <Tabs defaultValue={defaultTab} className="w-full">
+      <TabsList className="mb-4 flex h-auto flex-wrap gap-1">
+        {roof && <TabsTrigger value="roof" className="gap-1.5"><Layers className="size-3.5" />Roof</TabsTrigger>}
+        {area && <TabsTrigger value="siding" className="gap-1.5"><Square className="size-3.5" />Siding</TabsTrigger>}
+        {trim && <TabsTrigger value="trim" className="gap-1.5"><Ruler className="size-3.5" />Trim</TabsTrigger>}
+        {openings && <TabsTrigger value="openings" className="gap-1.5"><DoorOpen className="size-3.5" />Openings</TabsTrigger>}
+        {roofline && <TabsTrigger value="roofline" className="gap-1.5"><Home className="size-3.5" />Roofline</TabsTrigger>}
+        {footprint && <TabsTrigger value="footprint" className="gap-1.5"><Grid3X3 className="size-3.5" />Footprint</TabsTrigger>}
+        {corners && <TabsTrigger value="corners" className="gap-1.5"><CornerDownRight className="size-3.5" />Corners</TabsTrigger>}
+      </TabsList>
 
           {/* Roof Tab */}
           {roof && (
@@ -446,9 +490,7 @@ export function MeasurementsDisplay({ measurements, jobName, address }: Measurem
               </div>
             </TabsContent>
           )}
-        </Tabs>
-      </CardContent>
-    </Card>
+    </Tabs>
   )
 }
 
