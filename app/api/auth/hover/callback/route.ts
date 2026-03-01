@@ -63,11 +63,41 @@ export async function GET(request: NextRequest) {
       error: userError,
     } = await supabase.auth.getUser()
 
-    if (user) {
-      const { error: rpcError } = await supabase.rpc("save_hover_tokens", {
-        p_user_id: user.id,
-        p_access_token: access_token,
-        p_refresh_token: refresh_token,
+    console.log("[Hover Callback] User lookup:", { userId: user?.id, userError: userError?.message })
+
+    if (!user) {
+      console.error("[Hover Callback] No authenticated user found")
+      return NextResponse.redirect(
+        `${appUrl}/setup?hover_error=not_authenticated`,
+      )
+    }
+
+    // Get user's org_id first (use members table)
+    // Use RPC function for consistent org selection across the app
+    const { data: config, error: configError } = await adminSupabase.rpc("get_org_llm_config", {
+      p_user_id: user.id,
+    })
+    
+    const membership = config ? { org_id: config.org_id } : null
+    const membershipError = configError
+
+    console.log("[Hover Callback] Membership lookup:", { orgId: membership?.org_id, membershipError: membershipError?.message })
+
+    if (!membership?.org_id) {
+      console.error("[Hover Callback] User has no organization membership")
+      return NextResponse.redirect(
+        `${appUrl}/setup?hover_error=no_organization`,
+      )
+    }
+
+    // Use admin client to update the organization (bypasses RLS)
+    const { error: updateError } = await adminSupabase
+      .from("organizations")
+      .update({
+        hover_access_token: access_token,
+        hover_refresh_token: refresh_token,
+        hover_connected_at: new Date().toISOString(),
+        hover_token_expires_at: expiresAt.toISOString(),
       })
 
       if (rpcError) {
