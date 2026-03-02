@@ -137,7 +137,7 @@ export default function ChatPage() {
             className="size-6"
           />
           <span className="text-sm font-semibold text-foreground">
-            Hover Ninja
+            Hover Ninja<sup className="ml-1 text-[10px] font-medium text-muted-foreground align-super">ALPHA</sup>
           </span>
         </div>
       </header>
