@@ -104,6 +104,7 @@ export default function SettingsPage() {
   })
   const [originalFeatures, setOriginalFeatures] = useState<EnabledFeatures | null>(null)
   const [isSavingFeatures, setIsSavingFeatures] = useState(false)
+  const [featuresInitialized, setFeaturesInitialized] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!org) return
@@ -115,7 +116,11 @@ export default function SettingsPage() {
     setMembers(membersResult.members as MemberRow[])
     setInvitations(invitesResult.invitations as InviteRow[])
     setStages(stagesResult.stages || [])
-    // Load enabled features from org
+  }, [org])
+
+  // Only load features from org on initial mount, not on every org change
+  useEffect(() => {
+    if (!org || featuresInitialized) return
     const orgFeatures = org.enabled_features as EnabledFeatures | null
     if (orgFeatures) {
       setFeatures(orgFeatures)
@@ -132,7 +137,8 @@ export default function SettingsPage() {
       setFeatures(defaultFeatures)
       setOriginalFeatures(defaultFeatures)
     }
-  }, [org])
+    setFeaturesInitialized(true)
+  }, [org, featuresInitialized])
 
   useEffect(() => {
     if (isLoading) return
