@@ -12,7 +12,7 @@ import {
   updateMemberRole,
 } from "@/lib/actions/invite"
 import { getStages, deleteStage, updateStage, type Stage, type PipelineType } from "@/lib/actions/stages"
-import { disconnectLLM, disconnectHover } from "@/lib/actions/org"
+import { disconnectLLM, disconnectHover, updateOrgFeatures, type EnabledFeatures } from "@/lib/actions/org"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,13 +27,20 @@ import {
   ArrowLeft,
   Check,
   Copy,
+  ExternalLink,
+  Factory,
+  LayoutDashboard,
   Link2,
   Kanban,
   Loader2,
   Mail,
+  Megaphone,
+  MessageSquare,
   Pencil,
   Shield,
+  ToggleLeft,
   Trash2,
+  TrendingUp,
   Unplug,
   User,
   UserPlus,
@@ -86,6 +93,14 @@ export default function SettingsPage() {
   const [editingLinkedStageId, setEditingLinkedStageId] = useState<string | null>(null)
   const [deletingStageId, setDeletingStageId] = useState<string | null>(null)
   const [activePipelineTab, setActivePipelineTab] = useState<PipelineType>("sales")
+  const [features, setFeatures] = useState<EnabledFeatures>({
+    chat: true,
+    dashboard: false,
+    sales: false,
+    production: false,
+    marketing: false,
+  })
+  const [isSavingFeatures, setIsSavingFeatures] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!org) return
@@ -97,6 +112,10 @@ export default function SettingsPage() {
     setMembers(membersResult.members as MemberRow[])
     setInvitations(invitesResult.invitations as InviteRow[])
     setStages(stagesResult.stages || [])
+    // Load enabled features from org
+    if (org.enabled_features) {
+      setFeatures(org.enabled_features as EnabledFeatures)
+    }
   }, [org])
 
   useEffect(() => {
@@ -177,6 +196,16 @@ export default function SettingsPage() {
     await deleteStage(stageId)
     fetchData()
     setDeletingStageId(null)
+  }
+
+  async function handleToggleFeature(key: keyof EnabledFeatures) {
+    if (key === "chat") return // Chat is always enabled
+    setIsSavingFeatures(true)
+    const newFeatures = { ...features, [key]: !features[key] }
+    setFeatures(newFeatures)
+    await updateOrgFeatures(newFeatures)
+    await refreshOrg()
+    setIsSavingFeatures(false)
   }
 
   async function handleDisconnectLLM() {
@@ -302,6 +331,97 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Enabled Features */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ToggleLeft className="size-4" />
+                Enabled Features
+              </CardTitle>
+              <CardDescription>
+                Choose which features to show in your account. Team members will only see enabled features.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {/* Chat Feature */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <MessageSquare className="size-4" />
+                  Chat
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-5 items-center justify-center rounded bg-primary text-primary-foreground">
+                      <Check className="size-3" />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-foreground">AI Chat Assistant</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Chat with AI about your Hover jobs, measurements, and photos.
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Always on</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CRM Features */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <LayoutDashboard className="size-4" />
+                  CRM Features
+                </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 p-3 mb-1">
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    These are lightweight CRM features. If you use an existing CRM that is a Hover partner, check out the{" "}
+                    <a 
+                      href="https://hover.to/integrations" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-medium underline underline-offset-2 hover:no-underline"
+                    >
+                      Hover Integrations page
+                      <ExternalLink className="inline size-3 ml-1" />
+                    </a>
+                  </p>
+                </div>
+                <FeatureToggle
+                  icon={<LayoutDashboard className="size-4" />}
+                  title="Dashboard"
+                  description="Overview of jobs, metrics, and activity"
+                  enabled={features.dashboard}
+                  onToggle={() => handleToggleFeature("dashboard")}
+                  disabled={isSavingFeatures}
+                />
+                <FeatureToggle
+                  icon={<TrendingUp className="size-4" />}
+                  title="Sales Pipeline"
+                  description="Kanban board for your sales process"
+                  enabled={features.sales}
+                  onToggle={() => handleToggleFeature("sales")}
+                  disabled={isSavingFeatures}
+                />
+                <FeatureToggle
+                  icon={<Factory className="size-4" />}
+                  title="Production Pipeline"
+                  description="Manage jobs through installation"
+                  enabled={features.production}
+                  onToggle={() => handleToggleFeature("production")}
+                  disabled={isSavingFeatures}
+                />
+                <FeatureToggle
+                  icon={<Megaphone className="size-4" />}
+                  title="Marketing"
+                  description="Coming soon - Lead generation tools"
+                  enabled={features.marketing}
+                  onToggle={() => handleToggleFeature("marketing")}
+                  disabled={isSavingFeatures}
+                  comingSoon
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -695,5 +815,51 @@ export default function SettingsPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+interface FeatureToggleProps {
+  icon: React.ReactNode
+  title: string
+  description: string
+  enabled: boolean
+  onToggle: () => void
+  disabled?: boolean
+  comingSoon?: boolean
+}
+
+function FeatureToggle({ icon, title, description, enabled, onToggle, disabled, comingSoon }: FeatureToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled || comingSoon}
+      className={cn(
+        "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+        enabled 
+          ? "border-primary bg-primary/5" 
+          : "border-border bg-muted/30 hover:bg-muted/50",
+        (disabled || comingSoon) && "opacity-60 cursor-not-allowed"
+      )}
+    >
+      <div className={cn(
+        "mt-0.5 flex size-5 items-center justify-center rounded",
+        enabled ? "bg-primary text-primary-foreground" : "border border-border bg-background"
+      )}>
+        {enabled && <Check className="size-3" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">{icon}</span>
+          <span className="font-medium text-foreground text-sm">{title}</span>
+          {comingSoon && (
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              Coming Soon
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
+    </button>
   )
 }

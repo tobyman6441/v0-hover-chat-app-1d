@@ -167,3 +167,68 @@ export async function disconnectHover(): Promise<{ error?: string }> {
   if (error) return { error: error.message }
   return {}
 }
+
+export interface EnabledFeatures {
+  chat: boolean
+  dashboard: boolean
+  sales: boolean
+  production: boolean
+  marketing: boolean
+}
+
+export async function updateOrgFeatures(features: EnabledFeatures): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Not authenticated" }
+
+  // Get user's org via membership
+  const { data: membership } = await supabase
+    .from("members")
+    .select("org_id, role")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!membership) return { error: "No organization found" }
+  
+  // Only admins/owners can update features
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    return { error: "Only admins can update features" }
+  }
+
+  const { error } = await supabase
+    .from("organizations")
+    .update({ enabled_features: features })
+    .eq("id", membership.org_id)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function markSetupCompleted(): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Not authenticated" }
+
+  // Get user's org via membership
+  const { data: membership } = await supabase
+    .from("members")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!membership) return { error: "No organization found" }
+
+  const { error } = await supabase
+    .from("organizations")
+    .update({ setup_completed: true })
+    .eq("id", membership.org_id)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
