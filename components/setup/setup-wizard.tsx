@@ -3,27 +3,34 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { signOut } from "@/lib/actions/auth"
+import { markSetupCompleted, type EnabledFeatures } from "@/lib/actions/org"
 import { StepLLMProvider } from "./step-llm-provider"
 import { StepHoverConnect } from "./step-hover-connect"
+import { StepFeatures } from "./step-features"
+import { StepPipelineSetup } from "./step-pipeline-setup"
 import { SetupComplete } from "./setup-complete"
 import { cn } from "@/lib/utils"
 import { LogOut } from "lucide-react"
 import Image from "next/image"
 
-type SetupStep = "llm" | "hover" | "complete"
+type SetupStep = "llm" | "hover" | "features" | "pipeline" | "complete"
 
 const STEPS = [
   { id: "llm" as const, label: "LLM" },
   { id: "hover" as const, label: "Hover" },
+  { id: "features" as const, label: "Features" },
+  { id: "pipeline" as const, label: "Pipeline" },
   { id: "complete" as const, label: "Done" },
 ]
 
-function StepIndicator({ currentStep }: { currentStep: SetupStep }) {
-  const currentIndex = STEPS.findIndex((s) => s.id === currentStep)
+function StepIndicator({ currentStep, showPipeline }: { currentStep: SetupStep; showPipeline: boolean }) {
+  // Filter out pipeline step if not enabled
+  const visibleSteps = showPipeline ? STEPS : STEPS.filter(s => s.id !== "pipeline")
+  const currentIndex = visibleSteps.findIndex((s) => s.id === currentStep)
 
   return (
     <div className="flex items-center gap-1.5 sm:gap-2">
-      {STEPS.map((step, i) => {
+      {visibleSteps.map((step, i) => {
         const isActive = i === currentIndex
         const isDone = i < currentIndex
 
@@ -32,7 +39,7 @@ function StepIndicator({ currentStep }: { currentStep: SetupStep }) {
             {i > 0 && (
               <div
                 className={cn(
-                  "h-px w-4 sm:w-8 transition-colors",
+                  "h-px w-4 sm:w-6 transition-colors",
                   isDone ? "bg-primary" : "bg-border",
                 )}
               />
@@ -71,7 +78,15 @@ interface SetupWizardProps {
 }
 
 export function SetupWizard({ initialStep }: SetupWizardProps) {
-  const { user, org } = useAuth()
+  const { user, org, refreshOrg } = useAuth()
+  const [showPipelineStep, setShowPipelineStep] = useState(false)
+  const [enabledFeatures, setEnabledFeatures] = useState<EnabledFeatures>({
+    chat: true,
+    dashboard: false,
+    sales: false,
+    production: false,
+    marketing: false,
+  })
 
   // Determine initial step based on prop, or what's already configured
   const getInitialStep = (): SetupStep => {
@@ -80,13 +95,28 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
     
     if (!org) return "llm"
     if (org.llm_provider && org.llm_api_key_encrypted) {
-      if (org.hover_access_token) return "complete"
+      if (org.hover_access_token) {
+        // If setup was already completed, go to complete
+        if (org.setup_completed) return "complete"
+        // Otherwise go to features selection
+        return "features"
+      }
       return "hover"
     }
     return "llm"
   }
 
   const [currentStep, setCurrentStep] = useState<SetupStep>(getInitialStep)
+
+  // Load enabled features from org when available
+  useEffect(() => {
+    if (org?.enabled_features) {
+      setEnabledFeatures(org.enabled_features as EnabledFeatures)
+      // Check if any CRM features are enabled
+      const features = org.enabled_features as EnabledFeatures
+      setShowPipelineStep(features.sales || features.production)
+    }
+  }, [org?.enabled_features])
 
   // Auto-advance when org data changes (e.g., after connecting LLM or Hover)
   useEffect(() => {
@@ -99,11 +129,34 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
     if (org.llm_provider && org.llm_api_key_encrypted && currentStep === "llm") {
       setCurrentStep("hover")
     }
-    // If Hover is now connected and we're on hover step, advance to complete
+    // If Hover is now connected and we're on hover step, advance to features
     if (org.hover_access_token && currentStep === "hover") {
-      setCurrentStep("complete")
+      setCurrentStep("features")
     }
   }, [org, currentStep, initialStep])
+
+  const handleFeaturesComplete = (enabledCRM: boolean) => {
+    setShowPipelineStep(enabledCRM)
+    if (enabledCRM) {
+      setCurrentStep("pipeline")
+    } else {
+      handleSetupComplete()
+    }
+  }
+
+  const handlePipelineComplete = () => {
+    handleSetupComplete()
+  }
+
+  const handlePipelineSkip = () => {
+    handleSetupComplete()
+  }
+
+  const handleSetupComplete = async () => {
+    await markSetupCompleted()
+    await refreshOrg()
+    setCurrentStep("complete")
+  }
 
   async function handleSignOut() {
     await signOut()
@@ -126,7 +179,7 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
             <sup className="ml-0.5 text-[10px] font-medium text-muted-foreground">ALPHA</sup>
           </span>
         </div>
-        <StepIndicator currentStep={currentStep} />
+        <StepIndicator currentStep={currentStep} showPipeline={showPipelineStep} />
         <button
           onClick={handleSignOut}
           className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -144,8 +197,22 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
           )}
           {currentStep === "hover" && (
             <StepHoverConnect
-              onComplete={() => setCurrentStep("complete")}
+              onComplete={() => setCurrentStep("features")}
               onBack={() => setCurrentStep("llm")}
+            />
+          )}
+          {currentStep === "features" && (
+            <StepFeatures
+              onComplete={handleFeaturesComplete}
+              onBack={() => setCurrentStep("hover")}
+            />
+          )}
+          {currentStep === "pipeline" && (
+            <StepPipelineSetup
+              onComplete={handlePipelineComplete}
+              onBack={() => setCurrentStep("features")}
+              onSkip={handlePipelineSkip}
+              enabledFeatures={enabledFeatures}
             />
           )}
           {currentStep === "complete" && <SetupComplete />}

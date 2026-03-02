@@ -24,11 +24,20 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+interface EnabledFeatures {
+  chat: boolean
+  dashboard: boolean
+  sales: boolean
+  production: boolean
+  marketing: boolean
+}
+
 interface NavItem {
   label: string
   href: string
   icon: React.ElementType
   adminOnly?: boolean
+  featureKey?: keyof EnabledFeatures
 }
 
 const navItems: NavItem[] = [
@@ -36,26 +45,31 @@ const navItems: NavItem[] = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    featureKey: "dashboard",
   },
   {
     label: "Chat",
     href: "/chat",
     icon: MessageSquare,
+    featureKey: "chat",
   },
   {
     label: "Marketing",
     href: "/marketing",
     icon: Megaphone,
+    featureKey: "marketing",
   },
   {
     label: "Sales",
     href: "/sales",
     icon: DollarSign,
+    featureKey: "sales",
   },
   {
     label: "Production",
     href: "/production",
     icon: Wrench,
+    featureKey: "production",
   },
   {
     label: "Team",
@@ -71,13 +85,26 @@ const navItems: NavItem[] = [
 ]
 
 export function NavMenu() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, org } = useAuth()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
-  const filteredItems = navItems.filter(
-    (item) => !item.adminOnly || isAdmin
-  )
+  // Get enabled features from org, defaulting to chat only if not set
+  const enabledFeatures: EnabledFeatures = (org?.enabled_features as EnabledFeatures) || {
+    chat: true,
+    dashboard: false,
+    sales: false,
+    production: false,
+    marketing: false,
+  }
+
+  const filteredItems = navItems.filter((item) => {
+    // Filter by admin role
+    if (item.adminOnly && !isAdmin) return false
+    // Filter by enabled features (items without featureKey are always shown)
+    if (item.featureKey && !enabledFeatures[item.featureKey]) return false
+    return true
+  })
 
   const isActive = (href: string) => {
     if (href === "/chat") {
