@@ -21,6 +21,14 @@ export type LLMProvider =
   | "groq"
   | "deepseek"
 
+export interface EnabledFeatures {
+  chat: boolean
+  dashboard: boolean
+  sales: boolean
+  production: boolean
+  marketing: boolean
+}
+
 export interface OrgData {
   id: string
   name: string
@@ -30,6 +38,7 @@ export interface OrgData {
   hover_refresh_token: string | null
   hover_connected_at: string | null
   onboarding_complete: boolean
+  enabled_features: EnabledFeatures | null
 }
 
 export interface MemberData {
