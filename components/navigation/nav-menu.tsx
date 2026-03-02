@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth, type EnabledFeatures } from "@/lib/auth-context"
 import {
   Menu,
   MessageSquare,
@@ -23,14 +23,6 @@ import {
   Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-interface EnabledFeatures {
-  chat: boolean
-  dashboard: boolean
-  sales: boolean
-  production: boolean
-  marketing: boolean
-}
 
 interface NavItem {
   label: string
