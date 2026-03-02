@@ -158,8 +158,8 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
     setCurrentStep("feedback")
   }
 
-  const handleFeedbackComplete = () => {
-    handleSetupComplete()
+  const handleFeedbackComplete = async () => {
+    await handleSetupComplete()
   }
 
   const handleSetupComplete = async () => {

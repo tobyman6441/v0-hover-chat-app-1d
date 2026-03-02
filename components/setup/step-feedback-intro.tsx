@@ -1,14 +1,23 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ArrowRight, MessageCircle, Bug, Lightbulb, Star } from "lucide-react"
+import { ArrowLeft, ArrowRight, MessageCircle, Bug, Lightbulb, Star, Loader2 } from "lucide-react"
 
 interface StepFeedbackIntroProps {
-  onComplete: () => void
+  onComplete: () => void | Promise<void>
   onBack: () => void
 }
 
 export function StepFeedbackIntro({ onComplete, onBack }: StepFeedbackIntroProps) {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleContinue = async () => {
+    setIsLoading(true)
+    await onComplete()
+    setIsLoading(false)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
@@ -70,13 +79,19 @@ export function StepFeedbackIntro({ onComplete, onBack }: StepFeedbackIntroProps
       </div>
 
       <div className="flex items-center justify-between pt-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={onBack} disabled={isLoading}>
           <ArrowLeft className="size-4" />
           Back
         </Button>
-        <Button onClick={onComplete}>
-          Continue
-          <ArrowRight className="size-4" />
+        <Button onClick={handleContinue} disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <>
+              Continue
+              <ArrowRight className="size-4" />
+            </>
+          )}
         </Button>
       </div>
     </div>
