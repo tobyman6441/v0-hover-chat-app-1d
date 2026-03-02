@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/invite"
 import { getStages, deleteStage, updateStage, type Stage, type PipelineType } from "@/lib/actions/stages"
 import { disconnectLLM, disconnectHover, updateOrgFeatures, type EnabledFeatures } from "@/lib/actions/org"
+import { signOut } from "@/lib/actions/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,6 +34,7 @@ import {
   Link2,
   Kanban,
   Loader2,
+  LogOut,
   Mail,
   Megaphone,
   MessageSquare,
@@ -114,9 +116,21 @@ export default function SettingsPage() {
     setInvitations(invitesResult.invitations as InviteRow[])
     setStages(stagesResult.stages || [])
     // Load enabled features from org
-    if (org.enabled_features) {
-      setFeatures(org.enabled_features as EnabledFeatures)
-      setOriginalFeatures(org.enabled_features as EnabledFeatures)
+    const orgFeatures = org.enabled_features as EnabledFeatures | null
+    if (orgFeatures) {
+      setFeatures(orgFeatures)
+      setOriginalFeatures(orgFeatures)
+    } else {
+      // Set defaults if org doesn't have features set yet
+      const defaultFeatures: EnabledFeatures = {
+        chat: true,
+        dashboard: true,
+        sales: true,
+        production: true,
+        marketing: false,
+      }
+      setFeatures(defaultFeatures)
+      setOriginalFeatures(defaultFeatures)
     }
   }, [org])
 
@@ -842,6 +856,31 @@ export default function SettingsPage() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Log Out */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <LogOut className="size-4" />
+                Sign Out
+              </CardTitle>
+              <CardDescription>
+                Sign out of your account on this device.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await signOut()
+                  window.location.href = "/auth/login"
+                }}
+              >
+                <LogOut className="size-4" />
+                Sign out
+              </Button>
             </CardContent>
           </Card>
         </div>

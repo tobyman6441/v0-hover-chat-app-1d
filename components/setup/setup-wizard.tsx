@@ -8,23 +8,25 @@ import { StepLLMProvider } from "./step-llm-provider"
 import { StepHoverConnect } from "./step-hover-connect"
 import { StepFeatures } from "./step-features"
 import { StepPipelineSetup } from "./step-pipeline-setup"
+import { StepFeedbackIntro } from "./step-feedback-intro"
 import { SetupComplete } from "./setup-complete"
 import { cn } from "@/lib/utils"
 import { LogOut } from "lucide-react"
 import Image from "next/image"
 
-type SetupStep = "llm" | "hover" | "features" | "pipeline" | "complete"
+type SetupStep = "llm" | "hover" | "features" | "pipeline" | "feedback" | "complete"
 
 const STEPS = [
   { id: "llm" as const, label: "LLM" },
   { id: "hover" as const, label: "Hover" },
   { id: "features" as const, label: "Features" },
   { id: "pipeline" as const, label: "Pipeline" },
+  { id: "feedback" as const, label: "Feedback" },
   { id: "complete" as const, label: "Done" },
 ]
 
 function StepIndicator({ currentStep, showPipeline }: { currentStep: SetupStep; showPipeline: boolean }) {
-  // Filter out pipeline step if not enabled
+  // Filter out pipeline step if not enabled, but always show feedback
   const visibleSteps = showPipeline ? STEPS : STEPS.filter(s => s.id !== "pipeline")
   const currentIndex = visibleSteps.findIndex((s) => s.id === currentStep)
 
@@ -82,9 +84,9 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
   const [showPipelineStep, setShowPipelineStep] = useState(false)
   const [enabledFeatures, setEnabledFeatures] = useState<EnabledFeatures>({
     chat: true,
-    dashboard: false,
-    sales: false,
-    production: false,
+    dashboard: true,
+    sales: true,
+    production: true,
     marketing: false,
   })
 
@@ -135,20 +137,28 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
     }
   }, [org, currentStep, initialStep])
 
-  const handleFeaturesComplete = (enabledCRM: boolean) => {
+  const handleFeaturesComplete = (enabledCRM: boolean, features?: EnabledFeatures) => {
+    // Update enabled features if provided
+    if (features) {
+      setEnabledFeatures(features)
+    }
     setShowPipelineStep(enabledCRM)
     if (enabledCRM) {
       setCurrentStep("pipeline")
     } else {
-      handleSetupComplete()
+      setCurrentStep("feedback")
     }
   }
 
   const handlePipelineComplete = () => {
-    handleSetupComplete()
+    setCurrentStep("feedback")
   }
 
   const handlePipelineSkip = () => {
+    setCurrentStep("feedback")
+  }
+
+  const handleFeedbackComplete = () => {
     handleSetupComplete()
   }
 
@@ -213,6 +223,12 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
               onBack={() => setCurrentStep("features")}
               onSkip={handlePipelineSkip}
               enabledFeatures={enabledFeatures}
+            />
+          )}
+          {currentStep === "feedback" && (
+            <StepFeedbackIntro
+              onComplete={handleFeedbackComplete}
+              onBack={() => setCurrentStep(showPipelineStep ? "pipeline" : "features")}
             />
           )}
           {currentStep === "complete" && <SetupComplete />}

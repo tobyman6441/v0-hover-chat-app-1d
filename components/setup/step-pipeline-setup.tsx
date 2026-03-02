@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth-context"
 import {
   getStages,
@@ -22,7 +21,6 @@ import {
   Trash2,
   GripVertical,
   Loader2,
-  Sparkles,
   Link2,
   ChevronDown,
   ChevronUp,
@@ -57,8 +55,6 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
   const [isSaving, setIsSaving] = useState(false)
   // Default to expand sales section so users can see the default stages
   const [expandedSection, setExpandedSection] = useState<"marketing" | "sales" | "production" | null>("sales")
-  const [aiPrompt, setAiPrompt] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     async function loadStages() {
@@ -127,49 +123,6 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
     }
   }
 
-  const handleGenerateWithAI = async () => {
-    if (!aiPrompt.trim() || !org?.id) return
-    setIsGenerating(true)
-    
-    try {
-      const response = await fetch("/api/generate-stages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          prompt: aiPrompt,
-          orgId: org.id,
-          currentSalesStages: salesStages.map(s => s.name),
-          currentProductionStages: productionStages.map(s => s.name),
-        }),
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        // Reload stages from database since API saved them
-        if (data.salesStages && data.salesStages.length > 0) {
-          setSalesStages(data.salesStages)
-          // Expand sales section to show results
-          setExpandedSection("sales")
-        }
-        if (data.productionStages && data.productionStages.length > 0) {
-          setProductionStages(data.productionStages)
-          // If no sales stages were updated, expand production
-          if (!data.salesStages || data.salesStages.length === 0) {
-            setExpandedSection("production")
-          }
-        }
-        setAiPrompt("")
-      } else {
-        const errorData = await response.json()
-        console.error("AI generation failed:", errorData.error)
-      }
-    } catch (err) {
-      console.error("AI generation error:", err)
-    }
-    
-    setIsGenerating(false)
-  }
-
   const handleContinue = async () => {
     setIsSaving(true)
     onComplete()
@@ -191,38 +144,8 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
           Configure Your Pipelines
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set up the stages for your sales and production workflows. You can always adjust these later in Settings.
+          Review and customize the stages for your sales and production workflows. You can add, remove, rename, or reorder stages below. These can always be adjusted later in Settings.
         </p>
-      </div>
-
-      {/* AI Stage Generator */}
-      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="size-4 text-primary" />
-          <span className="font-medium text-sm text-foreground">AI Stage Generator</span>
-        </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          Describe how you want your pipeline stages organized and we will set them up for you.
-        </p>
-        <Textarea
-          value={aiPrompt}
-          onChange={(e) => setAiPrompt(e.target.value)}
-          placeholder="Example: I want my sales pipeline to have Lead, Contacted, Proposal Sent, Negotiating, and Won/Lost stages. For production, I need Scheduled, Materials Ordered, In Progress, Quality Check, and Complete."
-          className="min-h-[80px] text-sm"
-        />
-        <Button
-          size="sm"
-          className="mt-2"
-          onClick={handleGenerateWithAI}
-          disabled={!aiPrompt.trim() || isGenerating}
-        >
-          {isGenerating ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Sparkles className="size-4" />
-          )}
-          Generate Stages
-        </Button>
       </div>
 
       {/* Marketing Section (Coming Soon) */}

@@ -204,6 +204,11 @@ export async function updateOrgFeatures(features: EnabledFeatures): Promise<{ su
     .eq("id", membership.org_id)
 
   if (error) return { error: error.message }
+  
+  // Revalidate all pages to update navigation
+  const { revalidatePath } = await import("next/cache")
+  revalidatePath("/", "layout")
+  
   return { success: true }
 }
 

@@ -34,7 +34,7 @@ const DEFAULT_FEATURES: EnabledFeatures = {
 }
 
 interface StepFeaturesProps {
-  onComplete: (enabledCRM: boolean) => void
+  onComplete: (enabledCRM: boolean, features?: EnabledFeatures) => void
   onBack: () => void
 }
 
@@ -58,7 +58,7 @@ export function StepFeatures({ onComplete, onBack }: StepFeaturesProps) {
     const result = await updateOrgFeatures(features)
     if (result.success) {
       await refreshOrg()
-      onComplete(hasCRMEnabled)
+      onComplete(hasCRMEnabled, features)
     }
     setIsSaving(false)
   }

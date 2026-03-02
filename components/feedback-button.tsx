@@ -20,10 +20,11 @@ export function FeedbackButton() {
   return (
     <Button
       onClick={openFeedbackWindow}
-      className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg gap-2"
+      size="sm"
+      className="fixed bottom-20 right-4 z-50 rounded-full shadow-lg gap-2 sm:bottom-4"
     >
       <MessageCircle className="h-4 w-4" />
-      Feedback
+      <span className="hidden sm:inline">Feedback</span>
     </Button>
   )
 }
