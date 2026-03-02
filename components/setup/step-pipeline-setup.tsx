@@ -146,13 +146,23 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
       
       if (response.ok) {
         const data = await response.json()
-        if (data.salesStages) {
+        // Reload stages from database since API saved them
+        if (data.salesStages && data.salesStages.length > 0) {
           setSalesStages(data.salesStages)
+          // Expand sales section to show results
+          setExpandedSection("sales")
         }
-        if (data.productionStages) {
+        if (data.productionStages && data.productionStages.length > 0) {
           setProductionStages(data.productionStages)
+          // If no sales stages were updated, expand production
+          if (!data.salesStages || data.salesStages.length === 0) {
+            setExpandedSection("production")
+          }
         }
         setAiPrompt("")
+      } else {
+        const errorData = await response.json()
+        console.error("AI generation failed:", errorData.error)
       }
     } catch (err) {
       console.error("AI generation error:", err)

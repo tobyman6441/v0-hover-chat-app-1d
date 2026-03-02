@@ -100,6 +100,7 @@ export default function SettingsPage() {
     production: false,
     marketing: false,
   })
+  const [originalFeatures, setOriginalFeatures] = useState<EnabledFeatures | null>(null)
   const [isSavingFeatures, setIsSavingFeatures] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -115,6 +116,7 @@ export default function SettingsPage() {
     // Load enabled features from org
     if (org.enabled_features) {
       setFeatures(org.enabled_features as EnabledFeatures)
+      setOriginalFeatures(org.enabled_features as EnabledFeatures)
     }
   }, [org])
 
@@ -198,15 +200,25 @@ export default function SettingsPage() {
     setDeletingStageId(null)
   }
 
-  async function handleToggleFeature(key: keyof EnabledFeatures) {
+  function handleToggleFeature(key: keyof EnabledFeatures) {
     if (key === "chat") return // Chat is always enabled
+    setFeatures(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  async function handleSaveFeatures() {
     setIsSavingFeatures(true)
-    const newFeatures = { ...features, [key]: !features[key] }
-    setFeatures(newFeatures)
-    await updateOrgFeatures(newFeatures)
+    await updateOrgFeatures(features)
     await refreshOrg()
+    setOriginalFeatures(features)
     setIsSavingFeatures(false)
   }
+
+  const featuresChanged = originalFeatures && (
+    features.dashboard !== originalFeatures.dashboard ||
+    features.sales !== originalFeatures.sales ||
+    features.production !== originalFeatures.production ||
+    features.marketing !== originalFeatures.marketing
+  )
 
   async function handleDisconnectLLM() {
     setIsDisconnectingLLM(true)
@@ -421,6 +433,24 @@ export default function SettingsPage() {
                   disabled={isSavingFeatures}
                   comingSoon
                 />
+                
+                {/* Save Button */}
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleSaveFeatures}
+                    disabled={!featuresChanged || isSavingFeatures}
+                    size="sm"
+                  >
+                    {isSavingFeatures ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
