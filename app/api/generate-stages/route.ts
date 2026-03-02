@@ -61,8 +61,20 @@ Typical production stages flow: Scheduled → Materials → In Progress → Comp
 
 Respond ONLY with valid JSON, no other text.`
 
+    // Map provider to appropriate model
+    const modelMap: Record<string, string> = {
+      openai: "openai/gpt-4o-mini",
+      anthropic: "anthropic/claude-3-5-haiku-20241022",
+      google: "google/gemini-2.0-flash",
+      mistral: "mistral/mistral-small-latest",
+      groq: "groq/llama-3.1-8b-instant",
+      deepseek: "deepseek/deepseek-chat",
+    }
+    
+    const modelId = modelMap[orgConfig.llm_provider] || "openai/gpt-4o-mini"
+    
     const { text } = await generateText({
-      model: gateway(`${orgConfig.llm_provider}/gpt-4o-mini`, {
+      model: gateway(modelId, {
         apiKey: orgConfig.llm_api_key,
       }),
       system: systemPrompt,

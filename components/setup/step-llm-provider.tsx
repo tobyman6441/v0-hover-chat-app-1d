@@ -137,15 +137,22 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
   async function handleContinue() {
     if (!selectedProvider || !apiKey.trim() || !org) return
     setIsSaving(true)
-    const result = await updateOrgLLM(org.id, selectedProvider, apiKey.trim())
-    if (result.error) {
-      setError(result.error)
+    setError("")
+    
+    try {
+      const result = await updateOrgLLM(org.id, selectedProvider, apiKey.trim())
+      if (result.error) {
+        setError(result.error)
+        setIsSaving(false)
+        return
+      }
+      await refreshOrg()
+      // Success - call onComplete directly
+      onComplete()
+    } catch (err) {
+      setError("Failed to save LLM configuration. Please try again.")
       setIsSaving(false)
-      return
     }
-    await refreshOrg()
-    setIsSaving(false)
-    onComplete()
   }
 
   function handleSelectProvider(id: LLMProvider) {
