@@ -129,15 +129,44 @@ Respond ONLY with valid JSON, no other text.`
         .eq("org_id", orgId)
         .eq("pipeline_type", "production")
 
-      // Insert new production stages
-      const productionInserts = parsedStages.productionStages.map((name, idx) => ({
-        org_id: orgId,
-        name,
-        sort_order: idx,
-        is_default: idx === 0,
-        pipeline_type: "production",
-        probability: 100,
-      }))
+      // Find the "Approved" stage in sales to link to (if exists)
+      let salesApprovedId: string | null = null
+      if (result.salesStages) {
+        const approvedStage = result.salesStages.find(
+          (s: any) => s.name.toLowerCase() === "approved"
+        )
+        if (approvedStage) {
+          salesApprovedId = approvedStage.id
+        }
+      } else {
+        // Check existing sales stages
+        const { data: existingSalesStages } = await adminSupabase
+          .from("stages")
+          .select("id, name")
+          .eq("org_id", orgId)
+          .eq("pipeline_type", "sales")
+        
+        const approvedStage = existingSalesStages?.find(
+          (s: any) => s.name.toLowerCase() === "approved"
+        )
+        if (approvedStage) {
+          salesApprovedId = approvedStage.id
+        }
+      }
+
+      // Insert new production stages (link first "Approved" to sales if found)
+      const productionInserts = parsedStages.productionStages.map((name, idx) => {
+        const isApproved = name.toLowerCase() === "approved" && idx === 0
+        return {
+          org_id: orgId,
+          name,
+          sort_order: idx,
+          is_default: idx === 0,
+          pipeline_type: "production",
+          probability: 100,
+          linked_stage_id: isApproved ? salesApprovedId : null,
+        }
+      })
 
       const { data: newProductionStages } = await adminSupabase
         .from("stages")
