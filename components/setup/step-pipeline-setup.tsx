@@ -286,62 +286,104 @@ function StageList({ stages, pipelineType, linkedStages, onAdd, onUpdate, onDele
   return (
     <div className="flex flex-col gap-2">
       {stages.map((stage, idx) => (
-        <div key={stage.id} className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
-          <div className="flex flex-col">
-            <button
-              type="button"
-              onClick={() => onMove(stage.id, "up")}
-              disabled={idx === 0}
-              className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronUp className="size-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onMove(stage.id, "down")}
-              disabled={idx === stages.length - 1}
-              className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronDown className="size-3" />
-            </button>
-          </div>
-          <GripVertical className="size-4 text-muted-foreground" />
-          <Input
-            value={stage.name}
-            onChange={(e) => onUpdate(stage.id, { name: e.target.value })}
-            className="h-8 flex-1 text-sm"
-          />
-          {pipelineType === "production" && linkedStages.length > 0 && (
-            <Select
-              value={stage.linked_stage_id || "none"}
-              onValueChange={(value) => onUpdate(stage.id, { linked_stage_id: value === "none" ? null : value })}
-            >
-              <SelectTrigger className="h-8 w-[140px] text-xs">
-                <Link2 className="size-3 mr-1" />
-                <SelectValue placeholder="Link to sales" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No link</SelectItem>
-                {linkedStages.map(ls => (
-                  <SelectItem key={ls.id} value={ls.id}>{ls.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <button
-            type="button"
-            onClick={() => onDelete(stage.id)}
-            disabled={stages.length <= 1}
-            className="p-1.5 text-muted-foreground hover:text-destructive disabled:opacity-30"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        </div>
+        <StageItem
+          key={stage.id}
+          stage={stage}
+          index={idx}
+          totalStages={stages.length}
+          pipelineType={pipelineType}
+          linkedStages={linkedStages}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onMove={onMove}
+        />
       ))}
       <Button variant="outline" size="sm" onClick={onAdd} className="mt-1">
         <Plus className="size-4" />
         Add Stage
       </Button>
+    </div>
+  )
+}
+
+interface StageItemProps {
+  stage: Stage
+  index: number
+  totalStages: number
+  pipelineType: PipelineType
+  linkedStages: Stage[]
+  onUpdate: (id: string, updates: Partial<Stage>) => void
+  onDelete: (id: string) => void
+  onMove: (id: string, direction: "up" | "down") => void
+}
+
+function StageItem({ stage, index, totalStages, pipelineType, linkedStages, onUpdate, onDelete, onMove }: StageItemProps) {
+  // Use local state for the input to avoid issues with async updates
+  const [localName, setLocalName] = useState(stage.name)
+  
+  // Sync local state when stage.name changes from external source
+  useEffect(() => {
+    setLocalName(stage.name)
+  }, [stage.name])
+
+  const handleBlur = () => {
+    if (localName !== stage.name) {
+      onUpdate(stage.id, { name: localName })
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2">
+      <div className="flex flex-col">
+        <button
+          type="button"
+          onClick={() => onMove(stage.id, "up")}
+          disabled={index === 0}
+          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronUp className="size-3" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(stage.id, "down")}
+          disabled={index === totalStages - 1}
+          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronDown className="size-3" />
+        </button>
+      </div>
+      <GripVertical className="size-4 text-muted-foreground" />
+      <Input
+        value={localName}
+        onChange={(e) => setLocalName(e.target.value)}
+        onBlur={handleBlur}
+        className="h-8 flex-1 text-sm"
+      />
+      {pipelineType === "production" && linkedStages.length > 0 && (
+        <Select
+          value={stage.linked_stage_id || "none"}
+          onValueChange={(value) => onUpdate(stage.id, { linked_stage_id: value === "none" ? null : value })}
+        >
+          <SelectTrigger className="h-8 w-[140px] text-xs">
+            <Link2 className="size-3 mr-1" />
+            <SelectValue placeholder="Link to sales" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No link</SelectItem>
+            {linkedStages.map(ls => (
+              <SelectItem key={ls.id} value={ls.id}>{ls.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      <button
+        type="button"
+        onClick={() => onDelete(stage.id)}
+        disabled={totalStages <= 1}
+        className="p-1.5 text-muted-foreground hover:text-destructive disabled:opacity-30"
+      >
+        <Trash2 className="size-4" />
+      </button>
     </div>
   )
 }
