@@ -49,7 +49,7 @@ export default function LoginPage() {
           priority
         />
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Hover Ninja
+          Hover Ninja<sup className="ml-1 text-[10px] font-medium text-muted-foreground align-super">ALPHA</sup>
         </h1>
         <p className="text-sm text-muted-foreground">
           AI-powered chat for your Hover workspace

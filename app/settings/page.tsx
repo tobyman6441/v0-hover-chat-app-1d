@@ -95,9 +95,9 @@ export default function SettingsPage() {
   const [activePipelineTab, setActivePipelineTab] = useState<PipelineType>("sales")
   const [features, setFeatures] = useState<EnabledFeatures>({
     chat: true,
-    dashboard: false,
-    sales: false,
-    production: false,
+    dashboard: true,
+    sales: true,
+    production: true,
     marketing: false,
   })
   const [originalFeatures, setOriginalFeatures] = useState<EnabledFeatures | null>(null)
@@ -211,6 +211,8 @@ export default function SettingsPage() {
     await refreshOrg()
     setOriginalFeatures(features)
     setIsSavingFeatures(false)
+    // Refresh the page to update navigation menu
+    router.refresh()
   }
 
   const featuresChanged = originalFeatures && (
