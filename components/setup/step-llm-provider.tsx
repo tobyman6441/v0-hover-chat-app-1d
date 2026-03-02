@@ -147,7 +147,8 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
         return
       }
       await refreshOrg()
-      // Success - call onComplete directly
+      setIsSaving(false)
+      // Success - call onComplete after state is reset
       onComplete()
     } catch (err) {
       setError("Failed to save LLM configuration. Please try again.")

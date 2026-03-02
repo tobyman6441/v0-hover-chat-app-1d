@@ -89,12 +89,12 @@ export function NavMenu() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
-  // Get enabled features from org, defaulting to chat only if not set
+  // Get enabled features from org, defaulting to all enabled if not set
   const enabledFeatures: EnabledFeatures = (org?.enabled_features as EnabledFeatures) || {
     chat: true,
-    dashboard: false,
-    sales: false,
-    production: false,
+    dashboard: true,
+    sales: true,
+    production: true,
     marketing: false,
   }
 

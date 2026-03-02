@@ -55,9 +55,8 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
   const [productionStages, setProductionStages] = useState<Stage[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [expandedSection, setExpandedSection] = useState<"marketing" | "sales" | "production" | null>(
-    enabledFeatures.sales ? "sales" : enabledFeatures.production ? "production" : null
-  )
+  // Default to expand sales section so users can see the default stages
+  const [expandedSection, setExpandedSection] = useState<"marketing" | "sales" | "production" | null>("sales")
   const [aiPrompt, setAiPrompt] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
 

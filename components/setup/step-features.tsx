@@ -27,10 +27,10 @@ export interface EnabledFeatures {
 
 const DEFAULT_FEATURES: EnabledFeatures = {
   chat: true,
-  dashboard: false,
-  sales: false,
-  production: false,
-  marketing: false,
+  dashboard: true,
+  sales: true,
+  production: true,
+  marketing: false, // Coming soon
 }
 
 interface StepFeaturesProps {
