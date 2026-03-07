@@ -157,18 +157,17 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
         </p>
       </div>
 
-      {/* Marketing Section (Coming Soon) */}
+      {/* Marketing - leads list only, no pipeline stages */}
       {enabledFeatures.marketing && (
         <PipelineSection
           title="Marketing"
-          description="Coming soon - Marketing pipeline stages"
+          description="Instant Design leads list (no pipeline stages)"
           icon={<Megaphone className="size-4" />}
           expanded={expandedSections.has("marketing")}
           onToggle={() => toggleSection("marketing")}
-          comingSoon
         >
           <div className="py-6 text-center text-muted-foreground text-sm">
-            Marketing pipeline configuration will be available soon.
+            Marketing shows your Instant Design leads from Hover. No pipeline stages to configure.
           </div>
         </PipelineSection>
       )}

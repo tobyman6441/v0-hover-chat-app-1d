@@ -30,7 +30,7 @@ const DEFAULT_FEATURES: EnabledFeatures = {
   dashboard: true,
   sales: true,
   production: true,
-  marketing: false, // Coming soon
+  marketing: true,
 }
 
 interface StepFeaturesProps {
@@ -161,10 +161,9 @@ export function StepFeatures({ onComplete, onBack }: StepFeaturesProps) {
           <FeatureToggle
             icon={<Megaphone className="size-4" />}
             title="Marketing"
-            description="Coming soon - Tools to help generate leads and grow your business."
+            description="View and manage Instant Design leads from Hover."
             enabled={features.marketing}
             onToggle={() => toggleFeature("marketing")}
-            comingSoon
           />
         </div>
       </div>

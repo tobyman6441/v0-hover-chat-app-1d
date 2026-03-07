@@ -87,7 +87,7 @@ export function SetupWizard({ initialStep }: SetupWizardProps) {
     dashboard: true,
     sales: true,
     production: true,
-    marketing: false,
+    marketing: true,
   })
 
   // Determine initial step based on prop, or what's already configured
