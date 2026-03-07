@@ -112,12 +112,13 @@ Authentication: Bearer token (same OAuth as other Hover endpoints).
 ### List Instant Design Images: GET /api/v1/instant_design/images
 Documentation: https://developers.hover.to/reference/list-instant-design-images
 
-Returns Instant Design image IDs scoped to a **job_id**. Used to get images for a job (e.g. from Hover jobs list).
+Returns Instant Design image IDs. Either **job_id** or **lead_id** is required.
 
 **Base URL:** https://hover.to/api/v1/instant_design/images
 
-Query Parameters (required):
+Query Parameters (one required):
 - `job_id` (integer) - ID of the job associated with the Instant Design images
+- `lead_id` (integer) - ID of the lead; use this to show saved designs for a lead on the marketing lead detail page
 
 Response: `images[]` - Array of objects with `id` (image_id). Use Show Instant Design Image to get URL and details for each.
 
