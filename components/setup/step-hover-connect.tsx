@@ -98,6 +98,14 @@ export function StepHoverConnect({ onComplete, onBack }: StepHoverConnectProps) 
         </p>
       </div>
 
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/50">
+        <p className="text-amber-800 dark:text-amber-200">
+          <span className="font-medium">Before you connect:</span> You must be an
+          admin on the Hover account, and the Hover account must have access to
+          integrations.
+        </p>
+      </div>
+
       <div className="rounded-lg border border-border bg-card p-6">
         <div className="flex flex-col items-center gap-6 text-center">
           <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
