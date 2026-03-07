@@ -80,12 +80,17 @@ export async function listInstantDesignImageIdsByLeadId(
   leadId: number
 ): Promise<{ success: boolean; imageIds?: number[]; imageRefs?: InstantDesignImageRef[]; error?: string }> {
   try {
+    const numericLeadId = Number(leadId)
+    if (!Number.isInteger(numericLeadId) || numericLeadId <= 0) {
+      return { success: false, error: "Invalid lead_id" }
+    }
     const response = await fetch(
-      `https://hover.to/api/v1/instant_design/images?lead_id=${leadId}`,
+      `https://hover.to/api/v1/instant_design/images?lead_id=${numericLeadId}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
       }
     )
@@ -94,19 +99,24 @@ export async function listInstantDesignImageIdsByLeadId(
       return { success: false, error: `Failed to list instant design images: HTTP ${response.status}` }
     }
     const data = await response.json()
-    const raw = data.data ?? data.images ?? data.instant_design_images ?? (Array.isArray(data) ? data : [])
+    // API returns { images: [ { id: number }, ... ] } per docs; some wrappers use data
+    const raw =
+      data.images ??
+      data.data?.images ??
+      data.data ??
+      data.instant_design_images ??
+      (Array.isArray(data) ? data : [])
+    const list = Array.isArray(raw) ? raw : []
     const imageRefs: InstantDesignImageRef[] = []
-    if (Array.isArray(raw)) {
-      for (const item of raw) {
-        const id = typeof item === "object" && item != null && "id" in item ? item.id : item
-        const numId = typeof id === "number" ? id : Number(id)
-        if (Number.isInteger(numId) && numId > 0) {
-          const jobId =
-            typeof item === "object" && item != null && "job_id" in item
-              ? (item as { job_id?: number }).job_id
-              : undefined
-          imageRefs.push({ imageId: numId, jobId })
-        }
+    for (const item of list) {
+      const id = typeof item === "object" && item != null && "id" in item ? item.id : item
+      const numId = typeof id === "number" ? id : Number(id)
+      if (Number.isInteger(numId) && numId > 0) {
+        const jobId =
+          typeof item === "object" && item != null && "job_id" in item
+            ? (item as { job_id?: number }).job_id
+            : undefined
+        imageRefs.push({ imageId: numId, jobId })
       }
     }
     const imageIds = imageRefs.map((r) => r.imageId)
