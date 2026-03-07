@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -106,6 +106,7 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
   const [isVerifying, setIsVerifying] = useState(false)
   const [isVerified, setIsVerified] = useState(!!org?.llm_api_key_encrypted)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [showKey, setShowKey] = useState(false)
   const [error, setError] = useState("")
   const [isDisconnecting, setIsDisconnecting] = useState(false)
@@ -121,6 +122,17 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
       apiKeyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     })
   }, [])
+
+  // Fallback: if stuck on "Saving..." for too long, offer a way to continue
+  const [showStuckFallback, setShowStuckFallback] = useState(false)
+  useEffect(() => {
+    if (!isSaving) {
+      setShowStuckFallback(false)
+      return
+    }
+    const t = setTimeout(() => setShowStuckFallback(true), 12_000)
+    return () => clearTimeout(t)
+  }, [isSaving])
 
   async function handleVerify() {
     if (!selectedProvider || !apiKey.trim()) {
@@ -138,7 +150,8 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
     if (!selectedProvider || !apiKey.trim() || !org) return
     setIsSaving(true)
     setError("")
-    
+    setSaveSuccess(false)
+
     try {
       const result = await updateOrgLLM(org.id, selectedProvider, apiKey.trim())
       if (result.error) {
@@ -146,10 +159,12 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
         setIsSaving(false)
         return
       }
-      await refreshOrg()
+      // Advance to next step immediately so we never get stuck on "Saving..."
       setIsSaving(false)
-      // Success - call onComplete after state is reset
+      setSaveSuccess(true)
       onComplete()
+      // Refresh org in background so wizard has latest data
+      refreshOrg().catch(() => {})
     } catch (err) {
       setError("Failed to save LLM configuration. Please try again.")
       setIsSaving(false)
@@ -345,21 +360,46 @@ export function StepLLMProvider({ onComplete }: StepLLMProviderProps) {
           </div>
 
           {isVerified && (
-            <Button
-              onClick={handleContinue}
-              size="lg"
-              className="w-full"
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Continue"
+            <>
+              <Button
+                onClick={handleContinue}
+                size="lg"
+                className="w-full"
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+              {saveSuccess && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Saved! Taking you to the next step...
+                </p>
               )}
-            </Button>
+              {showStuckFallback && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/50">
+                  <p className="text-amber-800 dark:text-amber-200">
+                    Taking too long? Refresh the page — if your key was saved,
+                    you&apos;ll continue to the next step.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => {
+                      window.location.href = "/setup"
+                    }}
+                  >
+                    Refresh and continue
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
