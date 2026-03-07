@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/server"
 
-/** Hover webhook payload for instant-design-image-created */
-interface InstantDesignImageCreatedPayload {
+/** Hover webhook payload (common fields) */
+interface HoverWebhookPayload {
   event: string
   webhook_id?: number
+  code?: string
   lead_id?: number
   image_id?: number
   job_id?: number
@@ -15,7 +16,80 @@ interface InstantDesignImageCreatedPayload {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as InstantDesignImageCreatedPayload
+    const body = (await request.json()) as HoverWebhookPayload
+
+    if (body.event === "webhook-verification-code") {
+      const code = body.code
+      const webhookId = body.webhook_id
+      if (!code || typeof code !== "string") {
+        return NextResponse.json(
+          { error: "Missing verification code" },
+          { status: 400 }
+        )
+      }
+      const supabase = createAdminClient()
+      let orgId: string | null = null
+      if (webhookId != null) {
+        const { data: mapping } = await supabase
+          .from("hover_webhook_org")
+          .select("org_id")
+          .eq("webhook_id", webhookId)
+          .maybeSingle()
+        orgId = mapping?.org_id ?? null
+      }
+      if (!orgId) {
+        const { data: orgs } = await supabase
+          .from("organizations")
+          .select("id")
+          .not("hover_access_token", "is", null)
+          .limit(1)
+        orgId = orgs?.[0]?.id ?? null
+      }
+      if (!orgId) {
+        console.error("[Hover webhook] Verify: no org found for webhook_id", webhookId)
+        return NextResponse.json(
+          { error: "Could not determine organization for verification" },
+          { status: 503 }
+        )
+      }
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("hover_access_token")
+        .eq("id", orgId)
+        .single()
+      const token = org?.hover_access_token as string | null
+      if (!token) {
+        return NextResponse.json(
+          { error: "Organization has no Hover token" },
+          { status: 503 }
+        )
+      }
+      const verifyRes = await fetch(
+        `https://hover.to/api/v2/webhooks/${encodeURIComponent(code)}/verify`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      if (!verifyRes.ok) {
+        const errText = await verifyRes.text()
+        console.error("[Hover webhook] Verify request failed:", verifyRes.status, errText)
+        return NextResponse.json(
+          { error: "Webhook verification failed" },
+          { status: 502 }
+        )
+      }
+      if (webhookId != null) {
+        await supabase.from("hover_webhook_org").upsert(
+          { org_id: orgId, webhook_id: webhookId },
+          { onConflict: "webhook_id" }
+        )
+      }
+      return NextResponse.json({ verified: true })
+    }
 
     if (body.event === "instant-design-image-created") {
       const webhookId = body.webhook_id

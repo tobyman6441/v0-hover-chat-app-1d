@@ -1121,22 +1121,43 @@ export async function getLeadInstantDesignImagesFromHover(leadId: number): Promi
   success: boolean
   images?: HoverInstantDesignImageDetails[]
   error?: string
+  /** When using Hover list: number of image refs returned; if > 0 but images.length === 0, Show may be failing */
+  listRefsCount?: number
+  /** Sample error from Show when listRefsCount > 0 but no images loaded */
+  showErrorSample?: string
 }> {
   const tokenResult = await getHoverToken()
   if ("error" in tokenResult) {
     return { success: false, error: tokenResult.error }
   }
+  const numericLeadId = Number(leadId)
+  if (!Number.isInteger(numericLeadId) || numericLeadId <= 0) {
+    return { success: false, error: "Invalid lead id" }
+  }
   const { listInstantDesignImageIdsByLeadId } = await import("@/lib/hover-api")
-  const listResult = await listInstantDesignImageIdsByLeadId(tokenResult.accessToken, leadId)
+  const listResult = await listInstantDesignImageIdsByLeadId(tokenResult.accessToken, numericLeadId)
+  if (!listResult.success) {
+    return {
+      success: false,
+      error: listResult.error ?? "Failed to list instant design images",
+      listRefsCount: 0,
+    }
+  }
   const refs = listResult.imageRefs ?? (listResult.imageIds?.map((imageId) => ({ imageId })) ?? [])
-  if (!listResult.success || refs.length === 0) {
-    return { success: true, images: [] }
+  if (refs.length === 0) {
+    return { success: true, images: [], listRefsCount: 0 }
   }
   const details = await Promise.all(
     refs.map(({ imageId, jobId }) => getInstantDesignImageById(imageId, jobId))
   )
   const images = details.filter((r) => r.success && r.image).map((r) => r.image!)
-  return { success: true, images }
+  const firstFailure = details.find((r) => !r.success)
+  return {
+    success: true,
+    images,
+    listRefsCount: refs.length,
+    showErrorSample: images.length === 0 && firstFailure ? firstFailure.error : undefined,
+  }
 }
 
 /** Show Instant Design Image: GET /api/v1/instant_design/images/{image_id}. Returns URL and details/options. */
@@ -1156,28 +1177,47 @@ export async function getInstantDesignImageById(
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
     })
     if (!response.ok) {
-      return { success: false, error: `Failed to get instant design image: HTTP ${response.status}` }
+      const body = await response.text()
+      return {
+        success: false,
+        error: `Show instant design image: HTTP ${response.status}${body ? ` — ${body.slice(0, 120)}` : ""}`,
+      }
     }
-    const data = await response.json()
+    const contentType = response.headers.get("content-type") ?? ""
+    let data: Record<string, unknown>
+    if (contentType.includes("application/json")) {
+      data = await response.json()
+    } else {
+      const text = await response.text()
+      const trimmed = text.trim()
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        data = { url: trimmed }
+      } else {
+        return { success: false, error: `Unexpected response type: ${contentType.slice(0, 50)}` }
+      }
+    }
     const urlVal =
-      data.url ??
-      data.image_url ??
-      data.download_url ??
-      data.active_storage_url ??
-      data.link ??
-      data.image?.url ??
-      data.image?.image_url
+      (data.url as string) ??
+      (data.image_url as string) ??
+      (data.download_url as string) ??
+      (data.active_storage_url as string) ??
+      (data.link as string) ??
+      (data.image as Record<string, unknown>)?.url ??
+      (data.image as Record<string, unknown>)?.image_url ??
+      (data.instant_design_image as Record<string, unknown>)?.url
     if (!urlVal || typeof urlVal !== "string") {
       return { success: false, error: "Image response missing URL" }
     }
+    const nested = data.image as Record<string, unknown> | undefined
     const image: HoverInstantDesignImageDetails = {
       id: imageId,
       url: urlVal,
-      thumbnail_url: data.thumbnail_url || data.image?.thumbnail_url,
-      created_at: data.created_at,
+      thumbnail_url: (data.thumbnail_url as string) || (nested?.thumbnail_url as string),
+      created_at: data.created_at as string | undefined,
       details: data,
     }
     return { success: true, image }

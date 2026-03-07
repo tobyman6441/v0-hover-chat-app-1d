@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -21,6 +21,9 @@ import {
   Palette,
   Tag,
   RefreshCw,
+  Bug,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { NavMenu } from "@/components/navigation/nav-menu"
@@ -51,7 +54,9 @@ export default function MarketingLeadPage() {
   const { user, org, isLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const leadId = params?.leadId as string | undefined
+  const showDebug = searchParams.get("debug") === "1"
 
   const { toast } = useToast()
   const [lead, setLead] = useState<Lead | null>(null)
@@ -60,6 +65,10 @@ export default function MarketingLeadPage() {
   const [designsError, setDesignsError] = useState<string | null>(null)
   const [isLoadingLead, setIsLoadingLead] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [debugResult, setDebugResult] = useState<unknown>(null)
+  const [isLoadingDebug, setIsLoadingDebug] = useState(false)
+  const [debugError, setDebugError] = useState<string | null>(null)
 
   const loadLead = useCallback(async () => {
     if (!leadId) return
@@ -110,8 +119,20 @@ export default function MarketingLeadPage() {
       const hoverResult = await getLeadInstantDesignImagesFromHover(lead.hover_lead_id)
       if (hoverResult.success && hoverResult.images?.length) {
         loaded = hoverResult.images
-      } else if (!hoverResult.success && hoverResult.error) {
-        setDesignsError(hoverResult.error)
+      } else {
+        if (!hoverResult.success && hoverResult.error) {
+          setDesignsError(hoverResult.error)
+        } else if (
+          hoverResult.listRefsCount != null &&
+          hoverResult.listRefsCount > 0 &&
+          (hoverResult.images?.length ?? 0) === 0
+        ) {
+          setDesignsError(
+            hoverResult.showErrorSample
+              ? `Hover listed ${hoverResult.listRefsCount} image(s) but could not load details: ${hoverResult.showErrorSample}. Ensure webhooks are configured so new images sync with job ID.`
+              : `Hover listed ${hoverResult.listRefsCount} image(s) but could not load image details.`
+          )
+        }
       }
     }
     setSavedDesigns(loaded)
@@ -122,6 +143,28 @@ export default function MarketingLeadPage() {
     if (lead?.hover_lead_id == null) return
     loadSavedDesigns()
   }, [lead?.hover_lead_id, loadSavedDesigns])
+
+  const runDesignsDebug = useCallback(async () => {
+    if (!leadId) return
+    setIsLoadingDebug(true)
+    setDebugError(null)
+    try {
+      const res = await fetch(`/api/marketing/leads/${leadId}/designs-debug`)
+      const data = await res.json()
+      if (!res.ok) {
+        setDebugError(data.error ?? `HTTP ${res.status}`)
+        setDebugResult(null)
+      } else {
+        setDebugResult(data)
+        setDebugOpen(true)
+      }
+    } catch (e) {
+      setDebugError(String(e))
+      setDebugResult(null)
+    } finally {
+      setIsLoadingDebug(false)
+    }
+  }, [leadId])
 
   const handleLeadUpdate = async (field: keyof LeadInput, value: string | boolean | null) => {
     if (!lead || !leadId) return
@@ -323,9 +366,10 @@ export default function MarketingLeadPage() {
                     <Loader2 className="size-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : savedDesigns.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    No saved designs yet. When this lead creates Instant Design images in Hover, they will appear here.
-                  </p>
+                  <div className="py-6 text-center text-sm text-muted-foreground space-y-1">
+                    <p>No saved designs yet. When this lead creates Instant Design images in Hover, they will appear here.</p>
+                    <p className="text-xs">Register the Hover webhook for &quot;instant-design-image-created&quot; so new images sync with job ID. See <code className="rounded bg-muted px-1">docs/WEBHOOK_SETUP.md</code> or POST <code className="rounded bg-muted px-1">/api/hover/webhook/register</code> when logged in.</p>
+                  </div>
                 ) : (
                   <div className="space-y-6">
                     {savedDesigns.map((img, idx) => (
@@ -381,6 +425,47 @@ export default function MarketingLeadPage() {
                   </div>
                 )}
               </CardContent>
+            </Card>
+          )}
+
+          {/* Debug: Saved designs API (show with ?debug=1) */}
+          {showDebug && isHoverLead && (
+            <Card>
+              <button
+                type="button"
+                onClick={() => setDebugOpen((o) => !o)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Bug className="size-4" />
+                  Debug: Saved designs API
+                </span>
+                {debugOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </button>
+              {debugOpen && (
+                <CardContent className="border-t border-border pt-3">
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Runs List Instant Design Images (by lead_id) and Show for each ref. Use to see raw Hover API responses.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={runDesignsDebug}
+                    disabled={isLoadingDebug}
+                  >
+                    {isLoadingDebug ? <Loader2 className="size-4 animate-spin" /> : null}
+                    <span className="ml-2">{isLoadingDebug ? "Running…" : "Run debug"}</span>
+                  </Button>
+                  {debugError && (
+                    <p className="mt-2 text-sm text-destructive">{debugError}</p>
+                  )}
+                  {debugResult != null && (
+                    <pre className="mt-3 max-h-96 overflow-auto rounded border border-border bg-muted/30 p-3 text-xs">
+                      {JSON.stringify(debugResult, null, 2)}
+                    </pre>
+                  )}
+                </CardContent>
+              )}
             </Card>
           )}
         </div>
