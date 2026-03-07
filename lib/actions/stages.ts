@@ -46,28 +46,95 @@ export async function getStages(orgId: string, pipelineType?: PipelineType): Pro
   return { stages: stages || [] }
 }
 
-// Initialize default stages for an organization (if none exist)
+// Default stage definitions: Sales (with probability) and Production. Sales "Approved" links to Production "Approved".
+const DEFAULT_PRODUCTION_STAGES = [
+  { name: "Pre-production", sort_order: 0, probability: 0 },
+  { name: "Install", sort_order: 1, probability: 0 },
+  { name: "Approved", sort_order: 2, probability: 100 },
+] as const
+
+const DEFAULT_SALES_STAGES = [
+  { name: "Pre-appointment", sort_order: 0, probability: 10 },
+  { name: "Appointment scheduled", sort_order: 1, probability: 25 },
+  { name: "Waiting", sort_order: 2, probability: 50 },
+  { name: "Approved", sort_order: 3, probability: 100 },
+] as const
+
+// Initialize default stages for an organization (if none exist). Creates sales and production pipelines with Sales "Approved" linked to Production "Approved".
 export async function initializeDefaultStages(orgId: string): Promise<{ success: boolean; error?: string }> {
   const supabase = createAdminClient()
 
-  // Check if stages already exist
+  // Check if we already have stages with pipeline_type (sales or production)
   const { data: existingStages } = await supabase
     .from("stages")
-    .select("id")
+    .select("id, pipeline_type")
     .eq("org_id", orgId)
-    .limit(1)
+    .limit(10)
 
-  if (existingStages && existingStages.length > 0) {
-    return { success: true } // Already initialized
+  const hasSales = existingStages?.some((s: { pipeline_type?: string }) => s.pipeline_type === "sales")
+  const hasProduction = existingStages?.some((s: { pipeline_type?: string }) => s.pipeline_type === "production")
+  if (hasSales && hasProduction) {
+    return { success: true }
   }
 
-  // Use the database function to create default stages
-  const { error } = await supabase.rpc("create_default_stages", {
-    p_org_id: orgId
-  })
+  let productionApprovedId: string | null = null
 
-  if (error) return { success: false, error: error.message }
-  
+  // Create production stages first so we can link Sales Approved → Production Approved
+  if (!hasProduction) {
+    for (const row of DEFAULT_PRODUCTION_STAGES) {
+      const { data: stage, error } = await supabase
+        .from("stages")
+        .insert({
+          org_id: orgId,
+          name: row.name,
+          sort_order: row.sort_order,
+          is_default: true,
+          pipeline_type: "production",
+          probability: row.probability,
+        })
+        .select("id")
+        .single()
+      if (error) return { success: false, error: error.message }
+      if (row.name === "Approved") productionApprovedId = stage.id
+    }
+  }
+
+  // Create sales stages; link "Approved" to Production "Approved"
+  if (!hasSales) {
+    for (const row of DEFAULT_SALES_STAGES) {
+      const { error } = await supabase
+        .from("stages")
+        .insert({
+          org_id: orgId,
+          name: row.name,
+          sort_order: row.sort_order,
+          is_default: true,
+          pipeline_type: "sales",
+          probability: row.probability,
+          linked_stage_id: row.name === "Approved" && productionApprovedId ? productionApprovedId : null,
+        })
+      if (error) return { success: false, error: error.message }
+    }
+  }
+
+  // If we just created production stages but sales already existed, link existing Sales "Approved" to Production "Approved"
+  if (productionApprovedId && hasSales) {
+    const { data: salesApproved } = await supabase
+      .from("stages")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("pipeline_type", "sales")
+      .eq("name", "Approved")
+      .limit(1)
+      .maybeSingle()
+    if (salesApproved?.id) {
+      await supabase
+        .from("stages")
+        .update({ linked_stage_id: productionApprovedId, updated_at: new Date().toISOString() })
+        .eq("id", salesApproved.id)
+    }
+  }
+
   return { success: true }
 }
 

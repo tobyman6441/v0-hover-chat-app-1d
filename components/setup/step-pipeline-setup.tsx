@@ -53,8 +53,8 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
   const [productionStages, setProductionStages] = useState<Stage[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  // Default to expand sales section so users can see the default stages
-  const [expandedSection, setExpandedSection] = useState<"marketing" | "sales" | "production" | null>("sales")
+  // Expand both sales and production by default so default stages are visible
+  const [expandedSections, setExpandedSections] = useState<Set<"marketing" | "sales" | "production">>(new Set(["sales", "production"]))
 
   useEffect(() => {
     async function loadStages() {
@@ -103,6 +103,15 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
     await deleteStage(stageId)
     const updateFn = pipelineType === "sales" ? setSalesStages : setProductionStages
     updateFn(prev => prev.filter(s => s.id !== stageId))
+  }
+
+  const toggleSection = (section: "marketing" | "sales" | "production") => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(section)) next.delete(section)
+      else next.add(section)
+      return next
+    })
   }
 
   const handleMoveStage = async (stageId: string, direction: "up" | "down", pipelineType: PipelineType) => {
@@ -154,8 +163,8 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
           title="Marketing"
           description="Coming soon - Marketing pipeline stages"
           icon={<Megaphone className="size-4" />}
-          expanded={expandedSection === "marketing"}
-          onToggle={() => setExpandedSection(expandedSection === "marketing" ? null : "marketing")}
+          expanded={expandedSections.has("marketing")}
+          onToggle={() => toggleSection("marketing")}
           comingSoon
         >
           <div className="py-6 text-center text-muted-foreground text-sm">
@@ -170,8 +179,8 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
           title="Sales Pipeline"
           description="Track jobs from lead to approval"
           icon={<TrendingUp className="size-4" />}
-          expanded={expandedSection === "sales"}
-          onToggle={() => setExpandedSection(expandedSection === "sales" ? null : "sales")}
+          expanded={expandedSections.has("sales")}
+          onToggle={() => toggleSection("sales")}
         >
           <StageList
             stages={salesStages}
@@ -191,8 +200,8 @@ export function StepPipelineSetup({ onComplete, onBack, onSkip, enabledFeatures 
           title="Production Pipeline"
           description="Manage jobs through installation"
           icon={<Factory className="size-4" />}
-          expanded={expandedSection === "production"}
-          onToggle={() => setExpandedSection(expandedSection === "production" ? null : "production")}
+          expanded={expandedSections.has("production")}
+          onToggle={() => toggleSection("production")}
         >
           <StageList
             stages={productionStages}
@@ -318,18 +327,23 @@ interface StageItemProps {
 }
 
 function StageItem({ stage, index, totalStages, pipelineType, linkedStages, onUpdate, onDelete, onMove }: StageItemProps) {
-  // Use local state for the input to avoid issues with async updates
   const [localName, setLocalName] = useState(stage.name)
-  
-  // Sync local state when stage.name changes from external source
+  const [localProbability, setLocalProbability] = useState(stage.probability)
+
   useEffect(() => {
     setLocalName(stage.name)
   }, [stage.name])
+  useEffect(() => {
+    setLocalProbability(stage.probability)
+  }, [stage.probability])
 
-  const handleBlur = () => {
-    if (localName !== stage.name) {
-      onUpdate(stage.id, { name: localName })
-    }
+  const handleNameBlur = () => {
+    if (localName !== stage.name) onUpdate(stage.id, { name: localName })
+  }
+  const handleProbabilityBlur = () => {
+    const n = Math.min(100, Math.max(0, Number(localProbability)))
+    setLocalProbability(n)
+    if (n !== stage.probability) onUpdate(stage.id, { probability: n })
   }
 
   return (
@@ -353,25 +367,42 @@ function StageItem({ stage, index, totalStages, pipelineType, linkedStages, onUp
         </button>
       </div>
       <GripVertical className="size-4 text-muted-foreground" />
-      <Input
-        value={localName}
-        onChange={(e) => setLocalName(e.target.value)}
-        onBlur={handleBlur}
-        className="h-8 flex-1 text-sm"
-      />
-      {pipelineType === "production" && linkedStages.length > 0 && (
+      <div className="flex flex-1 items-center gap-2 min-w-0">
+        <Input
+          value={localName}
+          onChange={(e) => setLocalName(e.target.value)}
+          onBlur={handleNameBlur}
+          className="h-8 flex-1 text-sm min-w-0"
+        />
+        {pipelineType === "sales" && (
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={localProbability}
+            onChange={(e) => setLocalProbability(Number(e.target.value))}
+            onBlur={handleProbabilityBlur}
+            className="h-8 w-14 shrink-0 text-xs text-center"
+            title="Probability %"
+          />
+        )}
+      </div>
+      {/* Both pipelines can link to the other (matches Settings). Default: Sales Approved → Production Approved. */}
+      {linkedStages.length > 0 && (
         <Select
           value={stage.linked_stage_id || "none"}
           onValueChange={(value) => onUpdate(stage.id, { linked_stage_id: value === "none" ? null : value })}
         >
-          <SelectTrigger className="h-8 w-[140px] text-xs">
+          <SelectTrigger className="h-8 w-[160px] text-xs shrink-0">
             <Link2 className="size-3 mr-1" />
-            <SelectValue placeholder="Link to sales" />
+            <SelectValue placeholder={pipelineType === "sales" ? "Link to production" : "Link to sales"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No link</SelectItem>
             {linkedStages.map(ls => (
-              <SelectItem key={ls.id} value={ls.id}>{ls.name}</SelectItem>
+              <SelectItem key={ls.id} value={ls.id}>
+                {pipelineType === "sales" ? `Production: ${ls.name}` : ls.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
