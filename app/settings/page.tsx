@@ -431,6 +431,14 @@ export default function SettingsPage() {
                   disabled={isSavingFeatures}
                 />
                 <FeatureToggle
+                  icon={<Megaphone className="size-4" />}
+                  title="Marketing"
+                  description="View and manage leads from different sources or manually created leads"
+                  enabled={features.marketing}
+                  onToggle={() => handleToggleFeature("marketing")}
+                  disabled={isSavingFeatures}
+                />
+                <FeatureToggle
                   icon={<TrendingUp className="size-4" />}
                   title="Sales Pipeline"
                   description="Kanban board for your sales process"
@@ -444,14 +452,6 @@ export default function SettingsPage() {
                   description="Manage jobs through installation"
                   enabled={features.production}
                   onToggle={() => handleToggleFeature("production")}
-                  disabled={isSavingFeatures}
-                />
-                <FeatureToggle
-                  icon={<Megaphone className="size-4" />}
-                  title="Marketing"
-                  description="View and manage Instant Design leads from Hover"
-                  enabled={features.marketing}
-                  onToggle={() => handleToggleFeature("marketing")}
                   disabled={isSavingFeatures}
                 />
                 

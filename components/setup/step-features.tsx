@@ -161,7 +161,7 @@ export function StepFeatures({ onComplete, onBack }: StepFeaturesProps) {
           <FeatureToggle
             icon={<Megaphone className="size-4" />}
             title="Marketing"
-            description="View and manage Instant Design leads from Hover."
+            description="View and manage leads from different sources or manually created leads."
             enabled={features.marketing}
             onToggle={() => toggleFeature("marketing")}
           />
