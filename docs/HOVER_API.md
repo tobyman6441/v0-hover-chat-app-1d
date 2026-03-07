@@ -202,7 +202,7 @@ Event Types:
 ## Hover API Error Handling
 
 401: Token expired - Refresh token and retry
-403: Forbidden - Check scopes, re-authenticate
+403: Forbidden - Check scopes, re-authenticate. For **List/Show Instant Design Images**, 403 often means the OAuth integration does not have permission to access Instant Design APIs. Reconnect Hover in Settings (so a new token is issued with the correct scope) and/or ensure your Hover developer integration has Instant Design API access enabled.
 404: Job not found - Handle gracefully in UI
 429: Rate limited - Exponential backoff
 500: Server error - Retry with backoff

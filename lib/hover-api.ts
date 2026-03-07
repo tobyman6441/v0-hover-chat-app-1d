@@ -96,7 +96,12 @@ export async function listInstantDesignImageIdsByLeadId(
     )
     if (!response.ok) {
       if (response.status === 404) return { success: true, imageIds: [], imageRefs: [] }
-      return { success: false, error: `Failed to list instant design images: HTTP ${response.status}` }
+      const status = response.status
+      const hint =
+        status === 403
+          ? " Your Hover connection may not have permission to access Instant Design. Try reconnecting Hover in Settings, or ensure your Hover integration has Instant Design API access in the Hover developer portal."
+          : ""
+      return { success: false, error: `Failed to list instant design images: HTTP ${status}.${hint}` }
     }
     const data = await response.json()
     // API returns { images: [ { id: number }, ... ] } per docs; some wrappers use data
