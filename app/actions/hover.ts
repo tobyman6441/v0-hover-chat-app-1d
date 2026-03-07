@@ -1116,6 +1116,28 @@ export async function getInstantDesignLeadById(leadId: number): Promise<{
   return { success: true, lead }
 }
 
+/** Fetch saved Instant Design images for a lead directly from Hover API (fallback when DB has none). */
+export async function getLeadInstantDesignImagesFromHover(leadId: number): Promise<{
+  success: boolean
+  images?: HoverInstantDesignImageDetails[]
+  error?: string
+}> {
+  const tokenResult = await getHoverToken()
+  if ("error" in tokenResult) {
+    return { success: false, error: tokenResult.error }
+  }
+  const { listInstantDesignImageIdsByLeadId } = await import("@/lib/hover-api")
+  const listResult = await listInstantDesignImageIdsByLeadId(tokenResult.accessToken, leadId)
+  if (!listResult.success || !listResult.imageIds?.length) {
+    return { success: true, images: [] }
+  }
+  const details = await Promise.all(
+    listResult.imageIds.map((imageId) => getInstantDesignImageById(imageId, undefined))
+  )
+  const images = details.filter((r) => r.success && r.image).map((r) => r.image!)
+  return { success: true, images }
+}
+
 /** Show Instant Design Image: GET /api/v1/instant_design/images/{image_id}. Returns URL and details/options. */
 export async function getInstantDesignImageById(
   imageId: number,

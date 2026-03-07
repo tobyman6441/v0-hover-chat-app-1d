@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { getInstantDesignImageById, type HoverInstantDesignImageDetails } from "@/app/actions/hover"
+import { getInstantDesignImageById, getLeadInstantDesignImagesFromHover, type HoverInstantDesignImageDetails } from "@/app/actions/hover"
 import { getLeadInstantDesignImages } from "@/lib/actions/lead-instant-design"
 import { getLead, updateLead } from "@/lib/actions/leads"
 import { HOVER_LEAD_SOURCE, type Lead, type LeadInput } from "@/lib/types/leads"
@@ -88,19 +88,21 @@ export default function MarketingLeadPage() {
     if (lead?.hover_lead_id == null) return
     setIsLoadingDesigns(true)
     const listResult = await getLeadInstantDesignImages(lead.hover_lead_id)
-    if (!listResult.success || !listResult.images?.length) {
-      setSavedDesigns([])
-      setIsLoadingDesigns(false)
-      return
-    }
-    const details = await Promise.all(
-      listResult.images.map(({ image_id, job_id }) =>
-        getInstantDesignImageById(image_id, job_id ?? undefined)
+    let loaded: HoverInstantDesignImageDetails[] = []
+    if (listResult.success && listResult.images?.length) {
+      const details = await Promise.all(
+        listResult.images.map(({ image_id, job_id }) =>
+          getInstantDesignImageById(image_id, job_id ?? undefined)
+        )
       )
-    )
-    const loaded = details
-      .filter((r) => r.success && r.image)
-      .map((r) => r.image!)
+      loaded = details.filter((r) => r.success && r.image).map((r) => r.image!)
+    }
+    if (loaded.length === 0) {
+      const hoverResult = await getLeadInstantDesignImagesFromHover(lead.hover_lead_id)
+      if (hoverResult.success && hoverResult.images?.length) {
+        loaded = hoverResult.images
+      }
+    }
     setSavedDesigns(loaded)
     setIsLoadingDesigns(false)
   }, [lead?.hover_lead_id])
@@ -288,7 +290,7 @@ export default function MarketingLeadPage() {
                   </div>
                 ) : savedDesigns.length === 0 ? (
                   <p className="py-6 text-center text-sm text-muted-foreground">
-                    No saved designs yet. When this lead creates Instant Design images, they will appear here (and after webhooks are set up, new images will appear automatically).
+                    No saved designs yet. When this lead creates Instant Design images in Hover, they will appear here.
                   </p>
                 ) : (
                   <div className="space-y-6">

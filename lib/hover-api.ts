@@ -68,6 +68,36 @@ export async function listInstantDesignLeadsWithToken(accessToken: string): Prom
   }
 }
 
+/** List Instant Design image IDs for a lead. GET /api/v1/instant_design/images?lead_id= */
+export async function listInstantDesignImageIdsByLeadId(
+  accessToken: string,
+  leadId: number
+): Promise<{ success: boolean; imageIds?: number[]; error?: string }> {
+  try {
+    const response = await fetch(
+      `https://hover.to/api/v1/instant_design/images?lead_id=${leadId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    )
+    if (!response.ok) {
+      if (response.status === 404) return { success: true, imageIds: [] }
+      return { success: false, error: `Failed to list instant design images: HTTP ${response.status}` }
+    }
+    const data = await response.json()
+    const raw = data.images || data.instant_design_images || []
+    const imageIds = Array.isArray(raw)
+      ? raw.map((item: { id?: number } | number) => (typeof item === "object" && item != null && "id" in item ? item.id : item)).filter((id: unknown): id is number => typeof id === "number")
+      : []
+    return { success: true, imageIds }
+  } catch (error) {
+    return { success: false, error: String(error) }
+  }
+}
+
 export async function refreshHoverToken(refreshToken: string): Promise<{
   success: boolean
   accessToken?: string
