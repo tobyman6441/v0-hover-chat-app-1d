@@ -109,6 +109,58 @@ Response includes:
 Authentication: Bearer token (same OAuth as other Hover endpoints).
 
 
+### List Instant Design Images: GET /api/v1/instant_design/images
+Documentation: https://developers.hover.to/reference/list-instant-design-images
+
+Returns Instant Design image IDs scoped to a **job_id**. Used to get images for a job (e.g. from Hover jobs list).
+
+**Base URL:** https://hover.to/api/v1/instant_design/images
+
+Query Parameters (required):
+- `job_id` (integer) - ID of the job associated with the Instant Design images
+
+Response: `images[]` - Array of objects with `id` (image_id). Use Show Instant Design Image to get URL and details for each.
+
+
+### Show Instant Design Image: GET /api/v1/instant_design/images/{image_id}
+Documentation: https://developers.hover.to/reference/show-instant-design-image
+
+Returns a single Instant Design image: active storage link (URL) and optionally design details/options the user chose.
+
+**Base URL:** https://hover.to/api/v1/instant_design/images/{image_id}
+
+Path: `image_id` (integer) - The Instant Design image ID.
+
+Query Parameters (recommended):
+- `job_id` (integer) - ID of the job associated with the image (may be required by the API)
+
+Response: Image URL (e.g. `url`, `image_url`, `download_url`), optionally `thumbnail_url`, `created_at`, and any design options/metadata returned by the API.
+
+
+### Instant Design Webhook: instant-design-image-created
+Documentation: https://developers.hover.to/docs/hovers-available-webhooks#instant-design-images
+
+When a new Instant Design image is created, Hover sends a webhook to your configured URL.
+
+**Event:** `instant-design-image-created`
+
+Payload example:
+```json
+{
+  "project_id": 719829,
+  "project_name": "The Big House",
+  "job_id": 16741840,
+  "event": "instant-design-image-created",
+  "timestamp": "2025-06-26T20:16:20.000Z",
+  "lead_id": 8675309,
+  "image_id": 18921411,
+  "webhook_id": 17885
+}
+```
+
+Use `lead_id` and `image_id` to associate the image with the lead in your app. Store this mapping so you can show "Saved designs" per lead and counts on the leads list. Register the webhook with Hover and map `webhook_id` to your org (e.g. in `hover_webhook_org` table) so incoming events can be attributed to the correct organization.
+
+
 ## Hover External URLs (For Linking Out)
 
 Job Page: https://hover.to/wr/jobs/{job_id}
@@ -136,6 +188,7 @@ Event Types:
 - job.measurements_ready
 - inspection.created
 - inspection.completed
+- instant-design-image-created (see Instant Design Webhook section above; register and map webhook_id to org in hover_webhook_org for lead→image association)
 
 
 ## Hover API Rate Limits
