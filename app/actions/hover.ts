@@ -614,6 +614,21 @@ export interface HoverInstantDesignImage {
   created_at?: string
 }
 
+/** Instant Design lead from Hover (List Instant Design Leads API) */
+export interface HoverInstantDesignLead {
+  id: number
+  email: string | null
+  phone_number: string | null
+  full_name: string | null
+  location_postal_code: string | null
+  location_line_1: string | null
+  location_city: string | null
+  location_region: string | null
+  created_at: string
+  phone_marketing_opt_in?: boolean
+  phone_marketing_opt_in_at?: string | null
+}
+
 export interface JobPhotosResult {
   success: boolean
   jobDetails?: HoverJobDetails
@@ -1046,6 +1061,101 @@ async function fetchInstantDesignImagesWithToken(jobId: number, accessToken: str
   } catch (error) {
     return { success: false, error: String(error) }
   }
+}
+
+/** List Instant Design leads for the authenticated Hover org. GET https://hover.to/api/v1/instant_design/leads */
+export async function listInstantDesignLeads(): Promise<{
+  success: boolean
+  leads?: HoverInstantDesignLead[]
+  pagination?: { total: number; total_count: number; current_page: number; next_page: number | null; prev_page: number | null; total_pages: number }
+  error?: string
+}> {
+  const tokenResult = await getHoverToken()
+  if ("error" in tokenResult) {
+    return { success: false, error: tokenResult.error }
+  }
+  const { accessToken } = tokenResult
+  try {
+    const allLeads: HoverInstantDesignLead[] = []
+    let page = 1
+    let hasMore = true
+    let lastPagination: { total: number; total_count: number; current_page: number; next_page: number | null; prev_page: number | null; total_pages: number } = {
+      total: 0,
+      total_count: 0,
+      current_page: 1,
+      next_page: null,
+      prev_page: null,
+      total_pages: 1,
+    }
+    while (hasMore) {
+      const response = await fetch(
+        `https://hover.to/api/v1/instant_design/leads?page=${page}&per=100`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      if (!response.ok) {
+        return { success: false, error: `Failed to list instant design leads: HTTP ${response.status}` }
+      }
+      const data = await response.json()
+      const leads = data.leads || []
+      const meta = data.meta || {}
+      const pagination = meta.pagination || {}
+      lastPagination = {
+        total: pagination.total ?? allLeads.length + leads.length,
+        total_count: pagination.total_count ?? allLeads.length + leads.length,
+        current_page: pagination.current_page ?? page,
+        next_page: pagination.next_page ?? null,
+        prev_page: pagination.prev_page ?? null,
+        total_pages: pagination.total_pages ?? 1,
+      }
+      for (const row of leads) {
+        allLeads.push({
+          id: row.id,
+          email: row.email ?? null,
+          phone_number: row.phone_number ?? null,
+          full_name: row.full_name ?? null,
+          location_postal_code: row.location_postal_code ?? null,
+          location_line_1: row.location_line_1 ?? null,
+          location_city: row.location_city ?? null,
+          location_region: row.location_region ?? null,
+          created_at: row.created_at ?? "",
+          phone_marketing_opt_in: row.phone_marketing_opt_in,
+          phone_marketing_opt_in_at: row.phone_marketing_opt_in_at ?? null,
+        })
+      }
+      hasMore = pagination.next_page != null && page < (pagination.total_pages || 1)
+      page++
+      if (page > 50) break
+    }
+    return {
+      success: true,
+      leads: allLeads,
+      pagination: lastPagination,
+    }
+  } catch (error) {
+    return { success: false, error: String(error) }
+  }
+}
+
+/** Get a single Instant Design lead by id (fetches list and finds match). */
+export async function getInstantDesignLeadById(leadId: number): Promise<{
+  success: boolean
+  lead?: HoverInstantDesignLead
+  error?: string
+}> {
+  const result = await listInstantDesignLeads()
+  if (!result.success || !result.leads) {
+    return { success: false, error: result.error ?? "Failed to load leads" }
+  }
+  const lead = result.leads.find((l) => l.id === leadId)
+  if (!lead) {
+    return { success: false, error: "Lead not found" }
+  }
+  return { success: true, lead }
 }
 
 // Get all photos for a job (scan photos, inspection photos, wireframes, instant design)

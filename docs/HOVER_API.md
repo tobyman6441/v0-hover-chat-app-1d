@@ -91,6 +91,24 @@ Example Response:
 - Response: Structured measurements by category (roof, siding, windows, etc.)
 
 
+### List Instant Design Leads: GET /api/v1/instant_design/leads
+Documentation: https://developers.hover.to/reference/list-instant-design-leads
+
+Retrieves lead information submitted through Instant Design lead forms associated with the authenticated Hover organization.
+
+**Base URL:** https://hover.to/api/v1/instant_design/leads
+
+Query Parameters (optional):
+- `page` (integer, default: 1) - Page number for pagination
+- `per` (integer) - Results per page
+
+Response includes:
+- `leads[]` - Array of leads with: id, email, phone_number, full_name, location_postal_code, location_line_1, location_city, location_region, created_at, phone_marketing_opt_in, phone_marketing_opt_in_at
+- `meta.pagination` - total, total_count, current_page, next_page, prev_page, total_pages
+
+Authentication: Bearer token (same OAuth as other Hover endpoints).
+
+
 ## Hover External URLs (For Linking Out)
 
 Job Page: https://hover.to/wr/jobs/{job_id}

@@ -100,7 +100,7 @@ export default function SettingsPage() {
     dashboard: true,
     sales: true,
     production: true,
-    marketing: false,
+    marketing: true,
   })
   const [originalFeatures, setOriginalFeatures] = useState<EnabledFeatures | null>(null)
   const [isSavingFeatures, setIsSavingFeatures] = useState(false)
@@ -132,7 +132,7 @@ export default function SettingsPage() {
         dashboard: true,
         sales: true,
         production: true,
-        marketing: false,
+        marketing: true,
       }
       setFeatures(defaultFeatures)
       setOriginalFeatures(defaultFeatures)
@@ -449,11 +449,10 @@ export default function SettingsPage() {
                 <FeatureToggle
                   icon={<Megaphone className="size-4" />}
                   title="Marketing"
-                  description="Coming soon - Lead generation tools"
+                  description="View and manage Instant Design leads from Hover"
                   enabled={features.marketing}
                   onToggle={() => handleToggleFeature("marketing")}
                   disabled={isSavingFeatures}
-                  comingSoon
                 />
                 
                 {/* Save Button */}

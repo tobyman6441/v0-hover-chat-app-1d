@@ -87,7 +87,7 @@ export function NavMenu() {
     dashboard: true,
     sales: true,
     production: true,
-    marketing: false,
+    marketing: true,
   }
 
   const filteredItems = navItems.filter((item) => {
