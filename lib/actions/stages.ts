@@ -48,9 +48,9 @@ export async function getStages(orgId: string, pipelineType?: PipelineType): Pro
 
 // Default stage definitions: Sales (with probability) and Production. Sales "Approved" links to Production "Approved".
 const DEFAULT_PRODUCTION_STAGES = [
-  { name: "Pre-production", sort_order: 0, probability: 0 },
-  { name: "Install", sort_order: 1, probability: 0 },
-  { name: "Approved", sort_order: 2, probability: 100 },
+  { name: "Approved", sort_order: 0, probability: 20 },
+  { name: "Pre-production", sort_order: 1, probability: 50 },
+  { name: "Install", sort_order: 2, probability: 90 },
 ] as const
 
 const DEFAULT_SALES_STAGES = [
