@@ -20,6 +20,7 @@ import {
   CheckCircle,
   Palette,
   Tag,
+  RefreshCw,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { NavMenu } from "@/components/navigation/nav-menu"
@@ -27,6 +28,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+// Proxy Hover image URLs through our API (same as job page)
+function proxyImageUrl(url: string): string {
+  if (!url) return ""
+  return `/api/hover/image?url=${encodeURIComponent(url)}`
+}
 
 const LEAD_FIELDS: { key: keyof LeadInput; label: string; icon: React.ReactNode }[] = [
   { key: "full_name", label: "Full name", icon: <User className="size-4" /> },
@@ -50,6 +57,7 @@ export default function MarketingLeadPage() {
   const [lead, setLead] = useState<Lead | null>(null)
   const [savedDesigns, setSavedDesigns] = useState<HoverInstantDesignImageDetails[]>([])
   const [isLoadingDesigns, setIsLoadingDesigns] = useState(false)
+  const [designsError, setDesignsError] = useState<string | null>(null)
   const [isLoadingLead, setIsLoadingLead] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -87,8 +95,9 @@ export default function MarketingLeadPage() {
   const loadSavedDesigns = useCallback(async () => {
     if (lead?.hover_lead_id == null) return
     setIsLoadingDesigns(true)
-    const listResult = await getLeadInstantDesignImages(lead.hover_lead_id)
+    setDesignsError(null)
     let loaded: HoverInstantDesignImageDetails[] = []
+    const listResult = await getLeadInstantDesignImages(lead.hover_lead_id)
     if (listResult.success && listResult.images?.length) {
       const details = await Promise.all(
         listResult.images.map(({ image_id, job_id }) =>
@@ -101,6 +110,8 @@ export default function MarketingLeadPage() {
       const hoverResult = await getLeadInstantDesignImagesFromHover(lead.hover_lead_id)
       if (hoverResult.success && hoverResult.images?.length) {
         loaded = hoverResult.images
+      } else if (!hoverResult.success && hoverResult.error) {
+        setDesignsError(hoverResult.error)
       }
     }
     setSavedDesigns(loaded)
@@ -271,19 +282,42 @@ export default function MarketingLeadPage() {
             </CardContent>
           </Card>
 
-          {/* Saved designs: only for Hover leads */}
+          {/* Saved designs: only for Hover leads — uses Show Instant Design Image API */}
           {isHoverLead && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Palette className="size-4" />
-                  Saved designs
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Instant Design images this lead has created. Design options they chose are listed below each image.
-                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Palette className="size-4" />
+                      Saved designs
+                    </CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Instant Design images this lead has created. Design options they chose are listed below each image.
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => loadSavedDesigns()}
+                    disabled={isLoadingDesigns}
+                    className="shrink-0"
+                  >
+                    {isLoadingDesigns ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-4" />
+                    )}
+                    <span className="ml-2">Refresh</span>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
+                {designsError && (
+                  <p className="mb-4 text-sm text-destructive">
+                    {designsError}
+                  </p>
+                )}
                 {isLoadingDesigns ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -302,16 +336,16 @@ export default function MarketingLeadPage() {
                         <div className="flex flex-col gap-4 sm:flex-row">
                           <div className="shrink-0">
                             <a
-                              href={`/api/hover/image?url=${encodeURIComponent(img.url)}`}
+                              href={proxyImageUrl(img.url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="block overflow-hidden rounded-md border border-border bg-background"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={`/api/hover/image?url=${encodeURIComponent(img.thumbnail_url || img.url)}`}
+                                src={proxyImageUrl(img.thumbnail_url || img.url)}
                                 alt={`Design ${idx + 1}`}
-                                className="h-40 w-auto max-w-full object-contain sm:h-48"
+                                className="h-40 w-full max-w-full object-cover sm:h-48 sm:w-64"
                               />
                             </a>
                             <p className="mt-1 text-xs text-muted-foreground">
@@ -324,7 +358,7 @@ export default function MarketingLeadPage() {
                             {img.details && typeof img.details === "object" ? (
                               <ul className="space-y-1 text-sm">
                                 {Object.entries(img.details)
-                                  .filter(([k]) => !["url", "image_url", "download_url", "thumbnail_url", "image"].includes(k))
+                                  .filter(([k]) => !["url", "image_url", "download_url", "thumbnail_url", "image", "active_storage_url", "link"].includes(k))
                                   .map(([key, value]) => {
                                     if (value == null || (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0)) return null
                                     const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
