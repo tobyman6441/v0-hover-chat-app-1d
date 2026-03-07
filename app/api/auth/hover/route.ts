@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
+    scope: "read",
   })
 
   const authorizeUrl = `https://hover.to/oauth/authorize?${params.toString()}`
