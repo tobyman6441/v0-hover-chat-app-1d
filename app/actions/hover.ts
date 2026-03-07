@@ -1128,11 +1128,12 @@ export async function getLeadInstantDesignImagesFromHover(leadId: number): Promi
   }
   const { listInstantDesignImageIdsByLeadId } = await import("@/lib/hover-api")
   const listResult = await listInstantDesignImageIdsByLeadId(tokenResult.accessToken, leadId)
-  if (!listResult.success || !listResult.imageIds?.length) {
+  const refs = listResult.imageRefs ?? (listResult.imageIds?.map((imageId) => ({ imageId })) ?? [])
+  if (!listResult.success || refs.length === 0) {
     return { success: true, images: [] }
   }
   const details = await Promise.all(
-    listResult.imageIds.map((imageId) => getInstantDesignImageById(imageId, undefined))
+    refs.map(({ imageId, jobId }) => getInstantDesignImageById(imageId, jobId))
   )
   const images = details.filter((r) => r.success && r.image).map((r) => r.image!)
   return { success: true, images }
@@ -1161,8 +1162,15 @@ export async function getInstantDesignImageById(
       return { success: false, error: `Failed to get instant design image: HTTP ${response.status}` }
     }
     const data = await response.json()
-    const urlVal = data.url || data.image_url || data.download_url || data.image?.url
-    if (!urlVal) {
+    const urlVal =
+      data.url ??
+      data.image_url ??
+      data.download_url ??
+      data.active_storage_url ??
+      data.link ??
+      data.image?.url ??
+      data.image?.image_url
+    if (!urlVal || typeof urlVal !== "string") {
       return { success: false, error: "Image response missing URL" }
     }
     const image: HoverInstantDesignImageDetails = {
