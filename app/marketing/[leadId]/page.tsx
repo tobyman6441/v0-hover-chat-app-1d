@@ -108,9 +108,10 @@ export default function MarketingLeadPage() {
     let loaded: HoverInstantDesignImageDetails[] = []
     const listResult = await getLeadInstantDesignImages(lead.hover_lead_id)
     if (listResult.success && listResult.images?.length) {
+      const hoverLeadId = lead.hover_lead_id
       const details = await Promise.all(
         listResult.images.map(({ image_id, job_id }) =>
-          getInstantDesignImageById(image_id, job_id ?? undefined)
+          getInstantDesignImageById(image_id, job_id ?? undefined, hoverLeadId)
         )
       )
       loaded = details.filter((r) => r.success && r.image).map((r) => r.image!)
@@ -357,9 +358,16 @@ export default function MarketingLeadPage() {
               </CardHeader>
               <CardContent>
                 {designsError && (
-                  <p className="mb-4 text-sm text-destructive">
-                    {designsError}
-                  </p>
+                  <div className="mb-4 space-y-1">
+                    <p className="text-sm text-destructive">
+                      {designsError}
+                    </p>
+                    {designsError.includes("403") && (
+                      <p className="text-xs text-muted-foreground">
+                        Add <code className="rounded bg-muted px-1">?debug=1</code> to this page&apos;s URL and use &quot;Debug: Saved designs API&quot; → Run debug to see Hover&apos;s full response; that may indicate which permission or plan is required.
+                      </p>
+                    )}
+                  </div>
                 )}
                 {isLoadingDesigns ? (
                   <div className="flex items-center justify-center py-8">
