@@ -1148,7 +1148,9 @@ export async function getLeadInstantDesignImagesFromHover(leadId: number): Promi
     return { success: true, images: [], listRefsCount: 0 }
   }
   const details = await Promise.all(
-    refs.map(({ imageId, jobId }) => getInstantDesignImageById(imageId, jobId))
+    refs.map(({ imageId, jobId }) =>
+      getInstantDesignImageById(imageId, jobId, numericLeadId)
+    )
   )
   const images = details.filter((r) => r.success && r.image).map((r) => r.image!)
   const firstFailure = details.find((r) => !r.success)
@@ -1160,10 +1162,11 @@ export async function getLeadInstantDesignImagesFromHover(leadId: number): Promi
   }
 }
 
-/** Show Instant Design Image: GET /api/v1/instant_design/images/{image_id}. Returns URL and details/options. */
+/** Show Instant Design Image: GET /api/v1/instant_design/images/{image_id}. Optional query: job_id, lead_id. */
 export async function getInstantDesignImageById(
   imageId: number,
-  jobId?: number
+  jobId?: number,
+  leadId?: number
 ): Promise<{ success: boolean; image?: HoverInstantDesignImageDetails; error?: string }> {
   const tokenResult = await getHoverToken()
   if ("error" in tokenResult) {
@@ -1173,6 +1176,7 @@ export async function getInstantDesignImageById(
   try {
     const url = new URL(`https://hover.to/api/v1/instant_design/images/${imageId}`)
     if (jobId != null) url.searchParams.set("job_id", String(jobId))
+    if (leadId != null) url.searchParams.set("lead_id", String(leadId))
     const response = await fetch(String(url), {
       headers: {
         Authorization: `Bearer ${accessToken}`,

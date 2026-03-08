@@ -202,7 +202,7 @@ Event Types:
 ## Hover API Error Handling
 
 401: Token expired - Refresh token and retry
-403: Forbidden - Check scopes, re-authenticate. For **List/Show Instant Design Images**, 403 often means the OAuth integration does not have permission to access Instant Design APIs. Reconnect Hover in Settings (so a new token is issued with the correct scope) and/or ensure your Hover developer integration has Instant Design API access enabled.
+403: Forbidden - Check scopes, re-authenticate. For **List/Show Instant Design Images**, 403 often means the OAuth integration does not have permission to access Instant Design APIs. **Investigating 403 when List Leads works:** If your org can list Instant Design Leads but gets 403 on List Instant Design Images (by `lead_id`), the Images-by-lead endpoint may require a separate permission or plan in Hover. (1) Reconnect Hover in Settings. (2) On the lead page, add `?debug=1` and run "Debug: Saved designs API" to see the raw 403 response body from Hover—it may name the missing permission. (3) Contact Hover support with the endpoint (`GET /api/v1/instant_design/images?lead_id=...`) and the 403 body and ask what enables access. (4) Rely on the webhook: register `instant-design-image-created` so new images are stored with `job_id`; the lead detail page will then load images from the DB and call Show with `job_id`, which may succeed even if list-by-lead_id is restricted.
 404: Job not found - Handle gracefully in UI
 429: Rate limited - Exponential backoff
 500: Server error - Retry with backoff
