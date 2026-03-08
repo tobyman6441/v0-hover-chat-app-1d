@@ -1,3 +1,12 @@
+/**
+ * Hover webhook receiver. Handles:
+ * - webhook-verification-code: calls PUT https://hover.to/api/v2/webhooks/{code}/verify
+ * - instant-design-image-created: stores lead_id, image_id, job_id in lead_instant_design_images
+ *
+ * Docs: https://developers.hover.to/reference/webhooks
+ * Events: https://developers.hover.to/docs/hovers-available-webhooks
+ * Setup: docs/WEBHOOK_SETUP.md
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/server"
 
