@@ -178,18 +178,25 @@ Solution: Create an image proxy API route at /api/hover/image that adds the Bear
 <img src={`/api/hover/image?url=${encodeURIComponent(hoverImageUrl)}`} />
 
 
-## Hover Webhook Events
+## Hover Webhooks
 
-Configure webhook URL: https://your-domain.com/api/hover/webhook
+Configure webhook URL: `https://your-domain.com/api/hover/webhook`
 
-Event Types:
-- job.created
-- job.updated
-- job.state_changed
-- job.measurements_ready
-- inspection.created
-- inspection.completed
-- instant-design-image-created (see Instant Design Webhook section above; register and map webhook_id to org in hover_webhook_org for lead→image association)
+**API reference (v2):**
+
+| Action | Method | Endpoint |
+|--------|--------|----------|
+| Overview | — | [Webhooks](https://developers.hover.to/reference/webhooks) |
+| Available events | — | [Hover's available webhook events](https://developers.hover.to/docs/hovers-available-webhooks) |
+| List webhooks | GET | [List Webhooks](https://developers.hover.to/reference/list-webhooks) — `https://hover.to/api/v2/webhooks` |
+| Register webhook | POST | [Register Webhook](https://developers.hover.to/reference/register-webhook) — `https://hover.to/api/v2/webhooks` |
+| Verify webhook | PUT | [Verify Webhook](https://developers.hover.to/reference/verify-webhook) — `https://hover.to/api/v2/webhooks/{webhook_verification_code}/verify` |
+| Delete webhook | DELETE | [Delete Webhook](https://developers.hover.to/reference/delete-webhook) — `https://hover.to/api/v2/webhooks/{webhook_id}` |
+| Resend verification | POST | [Resend Webhook Verification Code](https://developers.hover.to/reference/resend-webhook-verification-code) — `https://hover.to/api/v2/webhooks/{webhook_id}/request_verification` |
+
+**Event types** (see [available webhook events](https://developers.hover.to/docs/hovers-available-webhooks)): job-state-changed-v2, model-created, model-state-changed, capture-request-state-changed, inspection-state-changed, deliverable-change-request-state-changed, **instant-design-image-created**, instant-design-lead-form-submitted, and others.
+
+For **instant-design-image-created**: register and verify a webhook; map `webhook_id` to org in `hover_webhook_org` so events are attributed correctly. See `docs/WEBHOOK_SETUP.md` for setup and our handler at `app/api/hover/webhook/route.ts`.
 
 
 ## Hover API Rate Limits

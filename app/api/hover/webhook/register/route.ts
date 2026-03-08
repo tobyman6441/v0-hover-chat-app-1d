@@ -1,10 +1,15 @@
+/**
+ * Register webhook with Hover for the current org.
+ * POST https://hover.to/api/v2/webhooks — see https://developers.hover.to/reference/register-webhook
+ * Setup guide: docs/WEBHOOK_SETUP.md
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 
 /**
- * POST: Register the instant-design webhook with Hover for the current org.
- * Requires auth and Hover to be connected. Uses request origin or NEXT_PUBLIC_APP_URL for webhook URL.
- * After this, Hover will send a verification POST to /api/hover/webhook; our handler verifies automatically.
+ * POST: Register the webhook with Hover (url = app origin + /api/hover/webhook).
+ * Requires auth and Hover connected. Hover then POSTs webhook-verification-code to our URL;
+ * app/api/hover/webhook/route.ts handles verification (PUT .../webhooks/{code}/verify).
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -19,13 +24,42 @@ export async function POST(request: NextRequest) {
     p_user_id: user.id,
   })
   const config = Array.isArray(configData) ? configData[0] : configData
-  const accessToken = config?.hover_access_token as string | undefined
+  let accessToken = config?.hover_access_token as string | undefined
   const orgId = config?.org_id as string | undefined
+  const refreshToken = config?.hover_refresh_token as string | undefined
   if (!accessToken || !orgId) {
     return NextResponse.json(
       { error: "Hover not connected. Connect Hover in Settings first." },
       { status: 403 }
     )
+  }
+
+  // Refresh Hover token if stale (same logic as getHoverToken) so Register Webhook gets a valid token
+  const connectedAt = config?.hover_connected_at ? new Date(config.hover_connected_at as string) : null
+  const tokenAgeHours = connectedAt ? (Date.now() - connectedAt.getTime()) / (1000 * 60 * 60) : 999
+  if (tokenAgeHours > 1.5 && refreshToken) {
+    const refreshRes = await fetch("https://hover.to/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: process.env.HOVER_CLIENT_ID ?? "",
+        client_secret: process.env.HOVER_CLIENT_SECRET ?? "",
+      }),
+    })
+    if (refreshRes.ok) {
+      const tokenData = await refreshRes.json()
+      if (tokenData.access_token) {
+        const admin = createAdminClient()
+        await admin.from("organizations").update({
+          hover_access_token: tokenData.access_token,
+          hover_refresh_token: tokenData.refresh_token ?? refreshToken,
+          hover_connected_at: new Date().toISOString(),
+        }).eq("id", orgId)
+        accessToken = tokenData.access_token
+      }
+    }
   }
 
   const base =
@@ -49,9 +83,15 @@ export async function POST(request: NextRequest) {
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
+    const status = res.status
+    const msg = data.error ?? data.message ?? `Hover API: ${status}`
+    const hint =
+      status === 401
+        ? " Token may be expired or invalid. Try disconnecting and reconnecting Hover in Settings, then run this again."
+        : ""
     return NextResponse.json(
-      { error: data.error ?? data.message ?? `Hover API: ${res.status}`, details: data },
-      { status: res.status >= 500 ? 502 : 400 }
+      { error: msg + hint, details: data },
+      { status: status >= 500 ? 502 : 400 }
     )
   }
 
