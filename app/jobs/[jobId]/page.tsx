@@ -49,6 +49,7 @@ import {
   type HoverJobPhoto
 } from "@/app/actions/hover"
 import { getStages, getJobStages, updateJobStage, ensureJobStage, type Stage } from "@/lib/actions/stages"
+import { CustomFieldValuesEditor } from "@/components/custom-fields/custom-field-values-editor"
 
 // Helper to proxy image URLs through our API
 function proxyImageUrl(url: string): string {
@@ -399,8 +400,17 @@ export default function JobDetailPage() {
                   )}
                 </div>
 
+                {/* Custom fields */}
+                <div className="mt-4 border-t border-border pt-4">
+                  <CustomFieldValuesEditor
+                    entityType="job"
+                    entityId={String(job.id)}
+                    appliesTo="jobs"
+                  />
+                </div>
+
                 {/* Action Button */}
-                <div className="mt-6">
+                <div className="mt-4">
                   <Button asChild>
                     <a
                       href={`https://hover.to/wr/jobs/${job.id}`}

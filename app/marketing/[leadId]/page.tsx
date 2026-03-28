@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getInstantDesignImageById, getLeadInstantDesignImagesFromHover, type HoverInstantDesignImageDetails } from "@/app/actions/hover"
 import { getLeadInstantDesignImages } from "@/lib/actions/lead-instant-design"
 import { getLead, updateLead } from "@/lib/actions/leads"
+import { CustomFieldValuesEditor } from "@/components/custom-fields/custom-field-values-editor"
 import { HOVER_LEAD_SOURCE, type Lead, type LeadInput } from "@/lib/types/leads"
 import {
   Loader2,
@@ -326,6 +327,22 @@ export default function MarketingLeadPage() {
             </CardContent>
           </Card>
 
+          {/* Custom fields */}
+          {leadId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Custom fields</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CustomFieldValuesEditor
+                  entityType="lead"
+                  entityId={leadId}
+                  appliesTo="leads"
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Saved designs: only for Hover leads — uses Show Instant Design Image API */}
           {isHoverLead && (
             <Card>
@@ -337,101 +354,19 @@ export default function MarketingLeadPage() {
                       Saved designs
                     </CardTitle>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Instant Design images this lead has created. Design options they chose are listed below each image.
+                      Instant Design images this lead has created.
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => loadSavedDesigns()}
-                    disabled={isLoadingDesigns}
-                    className="shrink-0"
-                  >
-                    {isLoadingDesigns ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-4" />
-                    )}
-                    <span className="ml-2">Refresh</span>
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {designsError && (
-                  <div className="mb-4 space-y-1">
-                    <p className="text-sm text-destructive">
-                      {designsError}
-                    </p>
-                    {designsError.includes("403") && (
-                      <p className="text-xs text-muted-foreground">
-                        Add <code className="rounded bg-muted px-1">?debug=1</code> to this page&apos;s URL and use &quot;Debug: Saved designs API&quot; → Run debug to see Hover&apos;s full response; that may indicate which permission or plan is required.
-                      </p>
-                    )}
-                  </div>
-                )}
-                {isLoadingDesigns ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : savedDesigns.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-muted-foreground space-y-1">
-                    <p>No saved designs yet. When this lead creates Instant Design images in Hover, they will appear here.</p>
-                    <p className="text-xs">Register the Hover webhook for &quot;instant-design-image-created&quot; so new images sync with job ID. See <code className="rounded bg-muted px-1">docs/WEBHOOK_SETUP.md</code> or POST <code className="rounded bg-muted px-1">/api/hover/webhook/register</code> when logged in.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {savedDesigns.map((img, idx) => (
-                      <div
-                        key={img.id}
-                        className="rounded-lg border border-border bg-muted/20 p-4"
-                      >
-                        <div className="flex flex-col gap-4 sm:flex-row">
-                          <div className="shrink-0">
-                            <a
-                              href={proxyImageUrl(img.url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block overflow-hidden rounded-md border border-border bg-background"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={proxyImageUrl(img.thumbnail_url || img.url)}
-                                alt={`Design ${idx + 1}`}
-                                className="h-40 w-full max-w-full object-cover sm:h-48 sm:w-64"
-                              />
-                            </a>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Image ID: {img.id}
-                              {img.created_at && ` · ${new Date(img.created_at).toLocaleString()}`}
-                            </p>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="mb-2 text-xs font-medium text-muted-foreground">Design details / options</p>
-                            {img.details && typeof img.details === "object" ? (
-                              <ul className="space-y-1 text-sm">
-                                {Object.entries(img.details)
-                                  .filter(([k]) => !["url", "image_url", "download_url", "thumbnail_url", "image", "active_storage_url", "link"].includes(k))
-                                  .map(([key, value]) => {
-                                    if (value == null || (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0)) return null
-                                    const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-                                    const display = typeof value === "object" ? JSON.stringify(value) : String(value)
-                                    return (
-                                      <li key={key} className="flex gap-2">
-                                        <span className="shrink-0 text-muted-foreground">{label}:</span>
-                                        <span className="truncate text-foreground">{display}</span>
-                                      </li>
-                                    )
-                                  })}
-                              </ul>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No additional details returned from API.</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                  <Palette className="size-8 text-muted-foreground/40" />
+                  <p className="text-sm font-medium text-muted-foreground">Coming soon</p>
+                  <p className="max-w-xs text-xs text-muted-foreground/70">
+                    Instant Design image retrieval requires API updates. This feature will be available once those changes are complete.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
