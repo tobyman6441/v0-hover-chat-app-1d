@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/invite"
 import { getStages, deleteStage, updateStage, type Stage, type PipelineType } from "@/lib/actions/stages"
 import { disconnectLLM, disconnectHover, updateOrgFeatures, type EnabledFeatures } from "@/lib/actions/org"
+import { CustomFieldsSection } from "@/components/settings/custom-fields-section"
 import { signOut } from "@/lib/actions/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -728,6 +729,9 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Custom Fields */}
+          <CustomFieldsSection />
 
           {/* Invite Members */}
           <Card>

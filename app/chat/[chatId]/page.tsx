@@ -10,21 +10,27 @@ import { useSidebar } from "../layout"
 import { Button } from "@/components/ui/button"
 import {
   AlertCircle,
+  ArrowRight,
   ArrowUp,
   Bell,
   Building2,
   Camera,
+  CheckCircle2,
   ChevronDown,
   ClipboardCheck,
   Copy,
   Download,
   FileText,
+  GitBranch,
+  Kanban,
+  List,
   Loader2,
   Menu,
   Plus,
   Ruler,
   Search,
   Send,
+  Settings,
   Sparkles,
   Square,
   User,
@@ -66,6 +72,24 @@ interface PhotosData {
   jobName: string
   address: string
   photosResult: JobPhotosResult
+}
+
+// Tool invocation part from AI SDK
+interface ToolInvocationPart {
+  type: "tool-invocation"
+  toolInvocation: {
+    state: "call" | "partial-call" | "result"
+    toolCallId: string
+    toolName: string
+    args: unknown
+    result?: unknown
+  }
+}
+
+// Navigate block data
+interface NavigateData {
+  url: string
+  label: string
 }
 
 function getUIMessageText(msg: UIMessage): string {
@@ -119,27 +143,33 @@ function hasIncompleteSpecialBlock(text: string): { hasIncomplete: boolean; text
   if (formStartIndex !== -1 && !text.includes("[/FORM]")) {
     return { hasIncomplete: true, textBefore: text.slice(0, formStartIndex).trim() }
   }
-  
+
   // Check for incomplete job picker: has [JOBS] but no [/JOBS]
   const jobsStartIndex = text.indexOf("[JOBS]")
   if (jobsStartIndex !== -1 && !text.includes("[/JOBS]")) {
     return { hasIncomplete: true, textBefore: text.slice(0, jobsStartIndex).trim() }
   }
-  
+
   // Check for incomplete measurements: has [MEASUREMENTS] but no [/MEASUREMENTS]
   const measStartIndex = text.indexOf("[MEASUREMENTS]")
   if (measStartIndex !== -1 && !text.includes("[/MEASUREMENTS]")) {
   return { hasIncomplete: true, textBefore: text.slice(0, measStartIndex).trim() }
   }
-  
+
   // Check for incomplete photos: has [PHOTOS] but no [/PHOTOS]
   const photosStartIndex = text.indexOf("[PHOTOS]")
   if (photosStartIndex !== -1 && !text.includes("[/PHOTOS]")) {
   return { hasIncomplete: true, textBefore: text.slice(0, photosStartIndex).trim() }
   }
-  
-  return { hasIncomplete: false, textBefore: "" }
+
+  // Check for incomplete navigate block
+  const navStartIndex = text.indexOf("[NAVIGATE]")
+  if (navStartIndex !== -1 && !text.includes("[/NAVIGATE]")) {
+    return { hasIncomplete: true, textBefore: text.slice(0, navStartIndex).trim() }
   }
+
+  return { hasIncomplete: false, textBefore: "" }
+}
 
 // Loading placeholder for streaming forms/job pickers
 function StreamingPlaceholder({ textBefore }: { textBefore: string }) {
@@ -156,6 +186,196 @@ function StreamingPlaceholder({ textBefore }: { textBefore: string }) {
       </div>
     </div>
   )
+}
+
+// Parse [NAVIGATE] blocks from AI response
+function parseNavigateBlocks(text: string): {
+  segments: Array<{ type: "text" | "navigate"; content: string; data?: NavigateData }>
+} {
+  const regex = /\[NAVIGATE\]([\s\S]*?)\[\/NAVIGATE\]/g
+  const segments: Array<{ type: "text" | "navigate"; content: string; data?: NavigateData }> = []
+  let lastIndex = 0
+  let match
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: "text", content: text.slice(lastIndex, match.index) })
+    }
+    try {
+      const data = JSON.parse(match[1]) as NavigateData
+      segments.push({ type: "navigate", content: match[0], data })
+    } catch {
+      segments.push({ type: "text", content: match[0] })
+    }
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ type: "text", content: text.slice(lastIndex) })
+  }
+
+  return { segments }
+}
+
+// Render text with [NAVIGATE] blocks replaced by buttons
+function TextWithNavigate({
+  text,
+  isUser,
+}: {
+  text: string
+  isUser: boolean
+}) {
+  const { segments } = parseNavigateBlocks(text)
+
+  return (
+    <>
+      {segments.map((seg, i) => {
+        if (seg.type === "navigate" && seg.data) {
+          return (
+            <Link
+              key={i}
+              href={seg.data.url}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              {seg.data.label}
+              <ArrowRight className="size-3.5" />
+            </Link>
+          )
+        }
+        return (
+          <span key={i}>
+            <TextWithLinks text={seg.content} isUser={isUser} />
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+// Human-readable labels for tool names
+function getToolLabel(toolName: string): string {
+  const labels: Record<string, string> = {
+    listPipelineStages: "Fetching pipeline stages",
+    moveJobToStage: "Moving job to stage",
+    createPipelineStage: "Creating pipeline stage",
+    renamePipelineStage: "Renaming pipeline stage",
+    deletePipelineStage: "Deleting pipeline stage",
+    getJobsInStage: "Getting jobs in stage",
+    searchLeads: "Searching leads",
+    updateLead: "Updating lead",
+  }
+  return labels[toolName] || toolName
+}
+
+// Render a completed tool result in a compact card
+function ToolResultCard({
+  toolName,
+  result,
+}: {
+  toolName: string
+  result: Record<string, unknown>
+}) {
+  if (result.error) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm dark:border-red-900/50 dark:bg-red-950/30">
+        <AlertCircle className="size-4 shrink-0 text-red-500" />
+        <span className="text-red-700 dark:text-red-300">{String(result.error)}</span>
+      </div>
+    )
+  }
+
+  if (toolName === "listPipelineStages") {
+    const stages = (result.stages as Array<{ id: string; name: string; pipeline_type: string; probability: number }>) || []
+    return (
+      <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+        <div className="mb-1.5 flex items-center gap-2 text-muted-foreground">
+          <List className="size-3.5" />
+          <span className="font-medium">Pipeline Stages ({stages.length})</span>
+        </div>
+        <div className="space-y-0.5">
+          {stages.map((s) => (
+            <div key={s.id} className="flex items-center justify-between text-xs">
+              <span className="text-foreground">{s.name}</span>
+              <span className="text-muted-foreground capitalize">{s.pipeline_type} · {s.probability}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (toolName === "searchLeads") {
+    const leads = (result.leads as Array<{ id: string; full_name: string | null; email: string | null; location_line_1: string | null; location_city: string | null }>) || []
+    return (
+      <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+        <div className="mb-1.5 flex items-center gap-2 text-muted-foreground">
+          <Users className="size-3.5" />
+          <span className="font-medium">{leads.length} lead{leads.length !== 1 ? "s" : ""} found</span>
+        </div>
+        <div className="space-y-0.5">
+          {leads.slice(0, 5).map((lead) => (
+            <div key={lead.id} className="flex items-center justify-between text-xs">
+              <span className="text-foreground">{lead.full_name || lead.email || "Unknown"}</span>
+              <span className="truncate ml-2 text-muted-foreground">{lead.location_city || lead.email || ""}</span>
+            </div>
+          ))}
+          {leads.length > 5 && (
+            <div className="text-xs text-muted-foreground">+{leads.length - 5} more</div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (toolName === "getJobsInStage") {
+    const count = (result.count as number) || 0
+    const stageName = (result.stageName as string) || "stage"
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+        <Kanban className="size-4 shrink-0 text-muted-foreground" />
+        <span className="text-muted-foreground">
+          {count} job{count !== 1 ? "s" : ""} in &ldquo;{stageName}&rdquo;
+        </span>
+      </div>
+    )
+  }
+
+  if (result.success) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm dark:border-green-900/50 dark:bg-green-950/30">
+        <CheckCircle2 className="size-4 shrink-0 text-green-500" />
+        <span className="text-green-700 dark:text-green-300">{String(result.message || "Done")}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+      <CheckCircle2 className="size-4 shrink-0 text-muted-foreground" />
+      <span className="text-muted-foreground">{getToolLabel(toolName)} complete</span>
+    </div>
+  )
+}
+
+// Render a tool invocation (loading or result)
+function ToolCallDisplay({ invocation }: { invocation: ToolInvocationPart["toolInvocation"] }) {
+  const { toolName, state } = invocation
+
+  if (state === "call" || state === "partial-call") {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+        <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+        <span className="text-muted-foreground">{getToolLabel(toolName)}…</span>
+      </div>
+    )
+  }
+
+  if (state === "result") {
+    const result = (invocation.result ?? {}) as Record<string, unknown>
+    return <ToolResultCard toolName={toolName} result={result} />
+  }
+
+  return null
 }
 
 // Parse measurements display from AI response
@@ -347,7 +567,7 @@ function MessageContent({
     }
   }
   
-  return <TextWithLinks text={text} isUser={isUser} />
+  return <TextWithNavigate text={text} isUser={isUser} />
 }
 
 const PROMPT_SUGGESTIONS = [
@@ -357,9 +577,9 @@ const PROMPT_SUGGESTIONS = [
     prompt: "Create a new Hover job for a property",
   },
   {
-    icon: Ruler,
-    label: "Get measurements",
-    prompt: "Give me the measurements for a specific Hover job",
+    icon: Kanban,
+    label: "Move a job",
+    prompt: "Help me move a job to a different pipeline stage",
   },
   {
     icon: Camera,
@@ -367,39 +587,49 @@ const PROMPT_SUGGESTIONS = [
     prompt: "Show me the photos for a specific Hover job",
   },
   {
-    icon: ClipboardCheck,
-    label: "Inspection details",
-    prompt: "Provide me with the inspection details for a specific Hover job",
+    icon: Ruler,
+    label: "Get measurements",
+    prompt: "Give me the measurements for a specific Hover job",
   },
 ]
 
 const MORE_PROMPT_OPTIONS = [
   {
+    category: "Pipeline Management",
+    prompts: [
+      { icon: Kanban, label: "Move a job", prompt: "Help me move a job to a different pipeline stage" },
+      { icon: List, label: "List stages", prompt: "What pipeline stages do I have?" },
+      { icon: Plus, label: "Add a stage", prompt: "Add a new stage to my sales pipeline" },
+      { icon: GitBranch, label: "Rename a stage", prompt: "Rename one of my pipeline stages" },
+    ],
+  },
+  {
+    category: "Leads & Marketing",
+    prompts: [
+      { icon: Search, label: "Search leads", prompt: "Search my leads" },
+      { icon: Users, label: "Update a lead", prompt: "Update the contact info for a lead" },
+    ],
+  },
+  {
     category: "Jobs & Properties",
     prompts: [
       { icon: Search, label: "List all jobs", prompt: "Show me all my Hover jobs" },
       { icon: Building2, label: "Get job details", prompt: "Show me the details for a Hover job" },
-      { icon: FileText, label: "Job status", prompt: "What is the status of my recent Hover jobs?" },
+      { icon: ClipboardCheck, label: "Inspection details", prompt: "Provide me with the inspection details for a specific Hover job" },
     ],
   },
   {
     category: "3D Models & Deliverables",
     prompts: [
       { icon: Download, label: "Download measurements", prompt: "Download a measurement report" },
-      { icon: FileText, label: "Get 3D model", prompt: "Get the 3D model deliverables for a job" },
       { icon: Ruler, label: "Roof measurements", prompt: "Get roof measurements for a job" },
-    ],
-  },
-  {
-    category: "Instant Design",
-    prompts: [
-      { icon: Sparkles, label: "Generate design", prompt: "Create an Instant Design visualization for a property" },
-      { icon: Camera, label: "View design images", prompt: "Show me the Instant Design images for a job" },
+      { icon: Sparkles, label: "Instant Design", prompt: "Show me the Instant Design images for a job" },
     ],
   },
   {
     category: "Organization",
     prompts: [
+      { icon: Settings, label: "Settings", prompt: "Take me to settings" },
       { icon: Users, label: "Team members", prompt: "List the users in my Hover organization" },
       { icon: Wallet, label: "Check wallet", prompt: "What is my current Hover wallet balance?" },
       { icon: Bell, label: "Webhooks", prompt: "Show me my configured webhooks" },
@@ -858,10 +1088,10 @@ export default function ChatDetailPage({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Mobile header */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2.5 md:hidden">
+      <header className="flex shrink-0 items-center gap-3 border-b border-border bg-[#111111] px-3 py-2.5 md:hidden">
         <button
           onClick={toggleSidebar}
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white"
           aria-label="Open menu"
         >
           <Menu className="size-5" />
@@ -874,17 +1104,17 @@ export default function ChatDetailPage({
             height={24}
             className="size-6"
           />
-          <span className="text-sm font-semibold text-foreground">
-            Hover Ninja<sup className="ml-1 text-[10px] font-medium text-muted-foreground align-super">ALPHA</sup>
+          <span className="text-sm font-semibold text-white">
+            Hover Ninja<sup className="ml-1 text-[10px] font-medium text-white/50 align-super">ALPHA</sup>
           </span>
         </div>
       </header>
 
       {/* Hover not connected banner */}
       {!org?.hover_access_token && (
-        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+        <div className="shrink-0 border-b border-border bg-muted px-3 py-2">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+            <div className="flex items-center gap-2 text-foreground">
               <AlertCircle className="size-4 shrink-0" />
               <p className="text-xs sm:text-sm">
                 Connect your Hover account to access your jobs and measurements
@@ -892,7 +1122,7 @@ export default function ChatDetailPage({
             </div>
             <Link
               href="/setup?step=hover"
-              className="shrink-0 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-700 sm:px-3 sm:py-1.5 sm:text-sm"
+              className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:px-3 sm:py-1.5 sm:text-sm"
             >
               Connect Hover
             </Link>
@@ -963,7 +1193,7 @@ export default function ChatDetailPage({
                       key={suggestion.label}
                       onClick={() => handlePromptClick(suggestion.prompt)}
                       disabled={isStreaming}
-                      className="group flex min-h-[44px] items-start gap-2 rounded-xl border border-border bg-card p-2.5 text-left transition-colors hover:border-primary/30 hover:bg-accent disabled:opacity-50 sm:gap-3 sm:p-3.5"
+                      className="group flex min-h-[44px] items-start gap-2 rounded-xl border border-border bg-card p-2.5 text-left transition-colors hover:border-primary/20 hover:bg-accent disabled:opacity-50 sm:gap-3 sm:p-3.5"
                     >
                       <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-hover:bg-primary/10 sm:size-8">
                         <SuggestionIcon className="size-3.5 text-muted-foreground transition-colors group-hover:text-primary sm:size-4" />
@@ -1010,7 +1240,7 @@ export default function ChatDetailPage({
                                 key={prompt.label}
                                 onClick={() => handlePromptClick(prompt.prompt)}
                                 disabled={isStreaming}
-                                className="group flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1.5 text-xs transition-colors hover:border-primary/30 hover:bg-accent disabled:opacity-50 sm:px-3 sm:py-2 sm:text-sm"
+                                className="group flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1.5 text-xs transition-colors hover:border-primary/20 hover:bg-accent disabled:opacity-50 sm:px-3 sm:py-2 sm:text-sm"
                               >
                                 <PromptIcon className="size-3 text-muted-foreground group-hover:text-primary sm:size-3.5" />
                                 <span className="text-foreground">{prompt.label}</span>
@@ -1028,7 +1258,12 @@ export default function ChatDetailPage({
 
           {messages.map((msg) => {
             const text = getUIMessageText(msg)
-            if (!text) return null
+            const toolInvocationParts = (msg.parts || []).filter(
+              (p): p is ToolInvocationPart => p.type === "tool-invocation",
+            )
+            // Skip messages with no renderable content
+            if (!text && toolInvocationParts.length === 0) return null
+
             return (
               <div
                 key={msg.id}
@@ -1060,17 +1295,27 @@ export default function ChatDetailPage({
                     <MessageContent text={text} isUser={true} />
                   ) : (
                     <div className="flex flex-col gap-2">
-                      <div className="whitespace-pre-wrap rounded-xl bg-muted px-4 py-3">
-  <MessageContent
-  text={text}
-  isUser={false}
-  onFormSubmit={handleFormSubmit}
-  onJobSelect={handleJobSelect}
-  onMeasurementsLoaded={handleMeasurementsLoaded}
-  onPhotosLoaded={handlePhotosLoaded}
-  isStreaming={isStreaming}
-  />
-                      </div>
+                      {/* Tool call cards (loading / result) */}
+                      {toolInvocationParts.map((part) => (
+                        <ToolCallDisplay
+                          key={part.toolInvocation.toolCallId}
+                          invocation={part.toolInvocation}
+                        />
+                      ))}
+                      {/* Text / rich content from the AI */}
+                      {text && (
+                        <div className="whitespace-pre-wrap rounded-xl bg-muted px-4 py-3">
+                          <MessageContent
+                            text={text}
+                            isUser={false}
+                            onFormSubmit={handleFormSubmit}
+                            onJobSelect={handleJobSelect}
+                            onMeasurementsLoaded={handleMeasurementsLoaded}
+                            onPhotosLoaded={handlePhotosLoaded}
+                            isStreaming={isStreaming}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1135,7 +1380,7 @@ export default function ChatDetailPage({
               <Button
                 type="submit"
                 size="icon"
-                className="size-10 shrink-0 rounded-lg sm:size-8"
+                className="size-10 shrink-0 rounded-lg bg-[#18784a] text-white hover:bg-[#15663c] sm:size-8"
                 disabled={!input.trim()}
                 aria-label="Send message"
               >

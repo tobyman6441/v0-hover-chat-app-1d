@@ -290,9 +290,9 @@ export function ChatSidebar({
   const unfolderedChats = chatsByFolder.get(null) || []
 
   return (
-    <aside className="flex h-full w-full flex-col border-r border-border bg-card">
+    <aside className="flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+      <div className="flex items-center gap-2 border-b border-sidebar-border px-3 py-3">
         <NavMenu />
         <div className="flex items-center gap-2">
           <Image
@@ -302,9 +302,9 @@ export function ChatSidebar({
             height={28}
             className="size-7"
           />
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-sm font-semibold text-sidebar-foreground">
             Hover Ninja
-            <sup className="ml-0.5 text-[10px] font-medium text-muted-foreground">ALPHA</sup>
+            <sup className="ml-0.5 text-[10px] font-medium text-sidebar-foreground/50">ALPHA</sup>
           </span>
         </div>
       </div>
@@ -314,7 +314,7 @@ export function ChatSidebar({
         <Button
           onClick={handleNewChat}
           variant="outline"
-          className="w-full justify-start"
+          className="w-full justify-start border-sidebar-border/60 bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
           disabled={isCreating}
         >
           {isCreating ? (
@@ -327,7 +327,7 @@ export function ChatSidebar({
       </div>
 
       {/* Chat list with folders */}
-      <nav className="flex-1 overflow-y-auto px-3 pb-3">
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 [scrollbar-color:theme(colors.sidebar-border)_transparent]">
         <div className="flex flex-col gap-1">
           {/* Folders section */}
           {folders.length > 0 && (
@@ -381,10 +381,10 @@ export function ChatSidebar({
                         </button>
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className={cn(
-                          "group flex items-center rounded-lg px-2 py-1.5 hover:bg-accent transition-colors",
-                          dragOverFolderId === folder.id && "bg-accent ring-2 ring-primary ring-inset"
+                          "group flex items-center rounded-lg px-2 py-1.5 hover:bg-sidebar-accent transition-colors",
+                          dragOverFolderId === folder.id && "bg-sidebar-accent ring-2 ring-sidebar-ring ring-inset"
                         )}
                         onDragOver={(e) => handleDragOverFolder(e, folder.id)}
                         onDragLeave={handleDragLeave}
@@ -405,8 +405,8 @@ export function ChatSidebar({
                           ) : (
                             <Folder className="size-4" style={{ color: folder.color }} />
                           )}
-                          <span className="flex-1 truncate text-sm">{folder.name}</span>
-                          <span className="text-xs text-muted-foreground">{folderChats.length}</span>
+                          <span className="flex-1 truncate text-sm text-sidebar-foreground">{folder.name}</span>
+                          <span className="text-xs text-sidebar-foreground/50">{folderChats.length}</span>
                         </button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -525,7 +525,7 @@ export function ChatSidebar({
           ) : (
             <button
               onClick={() => setIsCreatingFolder(true)}
-              className="mb-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="mb-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <FolderPlus className="size-4" />
               New folder
@@ -536,7 +536,7 @@ export function ChatSidebar({
           <div
             className={cn(
               "flex flex-col gap-0.5 rounded-lg transition-colors",
-              dragOverUnfoldered && draggedChatId && chats.find(c => c.id === draggedChatId)?.folder_id && "bg-accent ring-2 ring-primary ring-inset"
+              dragOverUnfoldered && draggedChatId && chats.find(c => c.id === draggedChatId)?.folder_id && "bg-sidebar-accent ring-2 ring-sidebar-ring ring-inset"
             )}
             onDragOver={(e) => {
               // Only show drop zone if dragging a chat that's in a folder
@@ -574,7 +574,7 @@ export function ChatSidebar({
           </div>
 
           {chats.length === 0 && (
-            <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+            <p className="px-3 py-6 text-center text-xs text-sidebar-foreground/50">
               No chats yet. Start a new conversation.
             </p>
           )}
@@ -582,20 +582,20 @@ export function ChatSidebar({
       </nav>
 
       {/* Footer with status + actions */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-sidebar-border p-3">
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {provider && (
-            <div className="flex items-center gap-1 rounded bg-muted px-2 py-1">
-              <provider.logo className="size-3 text-muted-foreground" />
-              <span className="text-[10px] font-medium text-muted-foreground">
+            <div className="flex items-center gap-1 rounded bg-sidebar-accent px-2 py-1">
+              <provider.logo className="size-3 text-sidebar-foreground/60" />
+              <span className="text-[10px] font-medium text-sidebar-foreground/70">
                 {provider.name}
               </span>
             </div>
           )}
           {org?.hover_access_token && (
-            <div className="flex items-center gap-1 rounded bg-muted px-2 py-1">
-              <Link2 className="size-3 text-muted-foreground" />
-              <span className="text-[10px] font-medium text-muted-foreground">
+            <div className="flex items-center gap-1 rounded bg-sidebar-accent px-2 py-1">
+              <Link2 className="size-3 text-sidebar-foreground/60" />
+              <span className="text-[10px] font-medium text-sidebar-foreground/70">
                 Hover
               </span>
             </div>
@@ -606,7 +606,7 @@ export function ChatSidebar({
             <Button
               variant="ghost"
               size="sm"
-              className="flex-1 justify-start text-xs"
+              className="flex-1 justify-start text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               onClick={() => router.push("/settings")}
             >
               <Settings className="size-3.5" />
@@ -616,7 +616,7 @@ export function ChatSidebar({
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-muted-foreground"
+            className="text-xs text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             onClick={async () => {
               await signOut()
               window.location.href = "/auth/login"
@@ -625,7 +625,7 @@ export function ChatSidebar({
             <LogOut className="size-3.5" />
           </Button>
         </div>
-        <p className="mt-1 truncate px-1 text-[10px] text-muted-foreground">
+        <p className="mt-1 truncate px-1 text-[10px] text-sidebar-foreground/40">
           {user?.email}
         </p>
       </div>
@@ -696,8 +696,8 @@ function ChatListItem({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        "group flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent cursor-grab active:cursor-grabbing",
-        isActive ? "bg-accent text-foreground" : "text-muted-foreground",
+        "group flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent cursor-grab active:cursor-grabbing",
+        isActive ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground/70",
         isDragging && "opacity-50"
       )}
     >
@@ -737,7 +737,7 @@ function ChatListItem({
         <>
           <button onClick={onNavigate} className="min-w-0 flex-1 text-left">
             <p className="truncate text-sm">{chat.title}</p>
-            <p className="text-xs text-muted-foreground/60">{formatDate(chat.updated_at)}</p>
+            <p className="text-xs text-sidebar-foreground/40">{formatDate(chat.updated_at)}</p>
           </button>
           <div className="ml-1 flex shrink-0 items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100">
             <DropdownMenu>
